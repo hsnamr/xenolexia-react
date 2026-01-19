@@ -3,25 +3,23 @@
  */
 
 import React, {useState, useCallback} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
 
-import type {Book} from '@types/index';
-import {useLibraryStore} from '@stores/libraryStore';
+import {View, Text, StyleSheet, FlatList, RefreshControl} from 'react-native';
+
 import {BookCard} from '@components/library/BookCard';
 import {EmptyLibrary} from '@components/library/EmptyLibrary';
 import {ImportBookButton} from '@components/library/ImportBookButton';
+import {useNavigation} from '@react-navigation/native';
+import {useLibraryStore} from '@stores/libraryStore';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {Book, RootStackParamList} from '@types/index';
+
+type LibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function LibraryScreen(): React.JSX.Element {
-  const navigation = useNavigation();
+  const navigation = useNavigation<LibraryNavigationProp>();
   const {books, isLoading, refreshBooks} = useLibraryStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -35,12 +33,12 @@ export function LibraryScreen(): React.JSX.Element {
     (book: Book) => {
       navigation.navigate('Reader', {bookId: book.id});
     },
-    [navigation],
+    [navigation]
   );
 
   const renderBook = useCallback(
     ({item}: {item: Book}) => <BookCard book={item} onPress={() => handleBookPress(item)} />,
-    [handleBookPress],
+    [handleBookPress]
   );
 
   const keyExtractor = useCallback((item: Book) => item.id, []);
@@ -62,9 +60,7 @@ export function LibraryScreen(): React.JSX.Element {
           numColumns={2}
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={styles.row}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -74,27 +70,27 @@ export function LibraryScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#ffffff',
+    flex: 1,
   },
   header: {
+    alignItems: 'center',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1f2937',
   },
   listContent: {
     padding: 16,
   },
   row: {
     justifyContent: 'space-between',
+  },
+  title: {
+    color: '#1f2937',
+    fontSize: 28,
+    fontWeight: '700',
   },
 });

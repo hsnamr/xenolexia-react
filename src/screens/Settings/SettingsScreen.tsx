@@ -3,16 +3,22 @@
  */
 
 import React from 'react';
-import {View, Text, StyleSheet, ScrollView, Switch} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
 
-import {useUserStore} from '@stores/userStore';
-import {SettingsSlider} from '@components/settings/SettingsSlider';
+import {View, Text, StyleSheet, ScrollView, Switch} from 'react-native';
+
 import {SettingsSelect} from '@components/settings/SettingsSelect';
+import {SettingsSlider} from '@components/settings/SettingsSlider';
+import {useNavigation} from '@react-navigation/native';
+import {useUserStore} from '@stores/userStore';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '@types/index';
+
+type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function SettingsScreen(): React.JSX.Element {
-  const navigation = useNavigation();
+  const navigation = useNavigation<SettingsNavigationProp>();
   const {preferences, updatePreferences} = useUserStore();
 
   return (
@@ -29,7 +35,7 @@ export function SettingsScreen(): React.JSX.Element {
         {/* Word Density */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Learning</Text>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingHeader}>
               <Text style={styles.settingLabel}>Word Replacement Density</Text>
@@ -67,14 +73,12 @@ export function SettingsScreen(): React.JSX.Element {
         {/* Notifications */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingRow}>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>Daily Reminders</Text>
-                <Text style={styles.settingDescription}>
-                  Get reminded to read every day
-                </Text>
+                <Text style={styles.settingDescription}>Get reminded to read every day</Text>
               </View>
               <Switch
                 value={preferences.notificationsEnabled}
@@ -88,7 +92,7 @@ export function SettingsScreen(): React.JSX.Element {
         {/* Reader Defaults */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reader Defaults</Text>
-          
+
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Default Theme</Text>
             <SettingsSelect
@@ -127,7 +131,9 @@ export function SettingsScreen(): React.JSX.Element {
           <View style={styles.settingItem}>
             <View style={styles.settingHeader}>
               <Text style={styles.settingLabel}>Line Height</Text>
-              <Text style={styles.settingValue}>{preferences.readerSettings.lineHeight.toFixed(1)}×</Text>
+              <Text style={styles.settingValue}>
+                {preferences.readerSettings.lineHeight.toFixed(1)}×
+              </Text>
             </View>
             <SettingsSlider
               value={preferences.readerSettings.lineHeight}
@@ -146,7 +152,7 @@ export function SettingsScreen(): React.JSX.Element {
         {/* Danger Zone */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, styles.dangerTitle]}>Data</Text>
-          
+
           <Text style={styles.dangerButton}>Export All Data</Text>
           <Text style={[styles.dangerButton, styles.destructive]}>Clear All Data</Text>
         </View>
@@ -156,91 +162,91 @@ export function SettingsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
   backButton: {
-    fontSize: 16,
     color: '#0ea5e9',
+    fontSize: 16,
     fontWeight: '500',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  placeholder: {
-    width: 50,
+  container: {
+    backgroundColor: '#ffffff',
+    flex: 1,
   },
   content: {
     flex: 1,
   },
-  section: {
-    padding: 20,
+  dangerButton: {
+    color: '#0ea5e9',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  dangerTitle: {
+    color: '#ef4444',
+  },
+  destructive: {
+    color: '#ef4444',
+  },
+  header: {
+    alignItems: 'center',
+    borderBottomColor: '#e5e7eb',
     borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  placeholder: {
+    width: 50,
+  },
+  section: {
     borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1,
+    padding: 20,
   },
   sectionTitle: {
+    color: '#6b7280',
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 16,
+    textTransform: 'uppercase',
+  },
+  settingDescription: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  settingHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   settingItem: {
     marginBottom: 20,
   },
-  settingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+  settingLabel: {
+    color: '#1f2937',
+    fontSize: 16,
+    fontWeight: '500',
   },
   settingRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
   settingTextContainer: {
     flex: 1,
     marginRight: 16,
   },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
-  },
   settingValue: {
+    color: '#0ea5e9',
     fontSize: 16,
     fontWeight: '600',
-    color: '#0ea5e9',
   },
-  settingDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  dangerTitle: {
-    color: '#ef4444',
-  },
-  dangerButton: {
-    fontSize: 16,
-    color: '#0ea5e9',
-    paddingVertical: 12,
-  },
-  destructive: {
-    color: '#ef4444',
+  title: {
+    color: '#1f2937',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

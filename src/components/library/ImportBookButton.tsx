@@ -3,23 +3,18 @@
  */
 
 import React, {useCallback} from 'react';
+
 import {Text, StyleSheet, TouchableOpacity, Alert} from 'react-native';
 // import DocumentPicker from 'react-native-document-picker';
-import {useLibraryStore} from '@stores/libraryStore';
-import {useUserStore} from '@stores/userStore';
-import type {Book} from '@types/index';
 
 interface ImportBookButtonProps {
   variant?: 'small' | 'large';
 }
 
 export function ImportBookButton({variant = 'small'}: ImportBookButtonProps): React.JSX.Element {
-  const {addBook} = useLibraryStore();
-  const {preferences} = useUserStore();
-
   const handleImport = useCallback(async () => {
     try {
-      // TODO: Implement actual file picking
+      // TODO: Implement actual file picking with DocumentPicker
       // const result = await DocumentPicker.pick({
       //   type: [DocumentPicker.types.allFiles],
       //   allowMultiSelection: false,
@@ -27,21 +22,21 @@ export function ImportBookButton({variant = 'small'}: ImportBookButtonProps): Re
       //
       // if (result && result[0]) {
       //   const file = result[0];
-      //   // Parse book metadata
-      //   // Add to library
+      //   // Parse book metadata using BookParserService
+      //   // Add to library using useLibraryStore
       // }
 
       // For now, show a placeholder alert
       Alert.alert(
         'Import Book',
         'Book import functionality will be available once the EPUB parser is implemented.\n\nSupported formats:\n• EPUB\n• FB2\n• MOBI (DRM-free)\n• TXT',
-        [{text: 'OK'}],
+        [{text: 'OK'}]
       );
     } catch (error) {
       // User cancelled or error occurred
-      console.log('Import cancelled or failed:', error);
+      console.error('Import cancelled or failed:', error);
     }
-  }, [addBook, preferences]);
+  }, []);
 
   if (variant === 'large') {
     return (
@@ -59,28 +54,28 @@ export function ImportBookButton({variant = 'small'}: ImportBookButtonProps): Re
 }
 
 const styles = StyleSheet.create({
-  smallButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0ea5e9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  smallButtonText: {
-    fontSize: 24,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
   largeButton: {
     backgroundColor: '#0ea5e9',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
     borderRadius: 30,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
   },
   largeButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  smallButton: {
+    alignItems: 'center',
+    backgroundColor: '#0ea5e9',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  smallButtonText: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '500',
   },
 });

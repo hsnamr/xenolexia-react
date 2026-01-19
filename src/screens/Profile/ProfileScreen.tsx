@@ -3,11 +3,17 @@
  */
 
 import React from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
 
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+
+import {useNavigation} from '@react-navigation/native';
 import {useUserStore} from '@stores/userStore';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '@types/index';
+
+type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface MenuItemProps {
   icon: string;
@@ -30,7 +36,7 @@ function MenuItem({icon, title, subtitle, onPress}: MenuItemProps): React.JSX.El
 }
 
 export function ProfileScreen(): React.JSX.Element {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ProfileNavigationProp>();
   const {preferences} = useUserStore();
 
   const getLanguageName = (code: string): string => {
@@ -73,13 +79,13 @@ export function ProfileScreen(): React.JSX.Element {
               icon="🌐"
               title="Target Language"
               subtitle={getLanguageName(preferences.defaultTargetLanguage)}
-              onPress={() => navigation.navigate('LanguageSettings')}
+              onPress={() => navigation.navigate('Settings')}
             />
             <MenuItem
               icon="📊"
               title="Proficiency Level"
               subtitle={getProficiencyLabel(preferences.defaultProficiencyLevel)}
-              onPress={() => navigation.navigate('LanguageSettings')}
+              onPress={() => navigation.navigate('Settings')}
             />
             <MenuItem
               icon="🎚️"
@@ -124,16 +130,8 @@ export function ProfileScreen(): React.JSX.Element {
               title="Data & Storage"
               onPress={() => navigation.navigate('Settings')}
             />
-            <MenuItem
-              icon="📤"
-              title="Export Data"
-              onPress={() => {}}
-            />
-            <MenuItem
-              icon="ℹ️"
-              title="About Xenolexia"
-              onPress={() => {}}
-            />
+            <MenuItem icon="📤" title="Export Data" onPress={() => {}} />
+            <MenuItem icon="ℹ️" title="About Xenolexia" onPress={() => {}} />
           </View>
         </View>
 
@@ -144,81 +142,81 @@ export function ProfileScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 40,
+    height: 80,
     justifyContent: 'center',
     marginBottom: 12,
+    width: 80,
   },
   avatarText: {
     fontSize: 40,
   },
-  title: {
+  chevron: {
+    color: '#9ca3af',
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
   },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+  container: {
+    backgroundColor: '#ffffff',
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
+  header: {
+    alignItems: 'center',
+    paddingVertical: 24,
   },
   menuContainer: {
     backgroundColor: '#f9fafb',
     borderRadius: 16,
     overflow: 'hidden',
   },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
   menuIcon: {
     fontSize: 20,
     marginRight: 12,
+  },
+  menuItem: {
+    alignItems: 'center',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  menuSubtitle: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginTop: 2,
   },
   menuTextContainer: {
     flex: 1,
   },
   menuTitle: {
+    color: '#1f2937',
     fontSize: 16,
     fontWeight: '500',
-    color: '#1f2937',
   },
-  menuSubtitle: {
-    fontSize: 14,
+  section: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
     color: '#6b7280',
-    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    textTransform: 'uppercase',
   },
-  chevron: {
+  title: {
+    color: '#1f2937',
     fontSize: 24,
-    color: '#9ca3af',
+    fontWeight: '700',
   },
   version: {
-    textAlign: 'center',
     color: '#9ca3af',
     fontSize: 14,
     paddingVertical: 20,
+    textAlign: 'center',
   },
 });

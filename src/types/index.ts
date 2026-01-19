@@ -202,25 +202,49 @@ export interface ReadingStats {
 }
 
 // ============================================================================
-// Navigation Types
+// Navigation Types (Basic - see @navigation/types for comprehensive types)
 // ============================================================================
 
-export type RootStackParamList = {
-  MainTabs: undefined;
-  Reader: {bookId: string};
-  BookDetail: {bookId: string};
-  BookDiscovery: undefined;
-  VocabularyDetail: {wordId: string};
-  Settings: undefined;
-  LanguageSettings: undefined;
-  Onboarding: undefined;
-};
+import type {NavigatorScreenParams} from '@react-navigation/native';
 
+/**
+ * Main Tab Navigator params
+ */
 export type MainTabsParamList = {
   Library: undefined;
-  Vocabulary: undefined;
+  Vocabulary: {filter?: 'all' | 'learning' | 'mastered' | 'new'};
   Statistics: undefined;
   Profile: undefined;
+};
+
+/**
+ * Root Stack Navigator params
+ */
+export type RootStackParamList = {
+  // Initial flow
+  Onboarding: undefined;
+
+  // Main app
+  MainTabs: NavigatorScreenParams<MainTabsParamList> | undefined;
+
+  // Reader
+  Reader: {bookId: string; initialLocation?: string};
+
+  // Book management
+  BookDetail: {bookId: string};
+  BookDiscovery: {searchQuery?: string};
+
+  // Vocabulary
+  VocabularyDetail: {wordId: string};
+  VocabularyQuiz: {wordIds?: string[]};
+
+  // Settings
+  Settings: undefined;
+  LanguageSettings: undefined;
+  ReaderSettings: undefined;
+  NotificationSettings: undefined;
+  DataManagement: undefined;
+  About: undefined;
 };
 
 // ============================================================================

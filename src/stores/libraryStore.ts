@@ -3,7 +3,8 @@
  */
 
 import {create} from 'zustand';
-import type {Book} from '@types/index';
+
+import type {Book} from '@/types';
 
 interface LibraryState {
   books: Book[];
@@ -17,6 +18,16 @@ interface LibraryState {
   getBook: (bookId: string) => Book | undefined;
   refreshBooks: () => Promise<void>;
   setLoading: (loading: boolean) => void;
+
+  // Progress tracking
+  updateProgress: (
+    bookId: string,
+    progress: number,
+    location: string | null,
+    chapter?: number,
+    page?: number
+  ) => void;
+  updateReadingTime: (bookId: string, minutes: number) => void;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -65,5 +76,42 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   setLoading: (loading: boolean) => {
     set({isLoading: loading});
+  },
+
+  updateProgress: (
+    bookId: string,
+    progress: number,
+    location: string | null,
+    chapter?: number,
+    page?: number
+  ) => {
+    set(state => ({
+      books: state.books.map(book =>
+        book.id === bookId
+          ? {
+              ...book,
+              progress: Math.min(100, Math.max(0, progress)),
+              currentLocation: location,
+              currentChapter: chapter ?? book.currentChapter,
+              currentPage: page ?? book.currentPage,
+              lastReadAt: new Date(),
+            }
+          : book
+      ),
+    }));
+  },
+
+  updateReadingTime: (bookId: string, minutes: number) => {
+    set(state => ({
+      books: state.books.map(book =>
+        book.id === bookId
+          ? {
+              ...book,
+              readingTimeMinutes: book.readingTimeMinutes + minutes,
+              lastReadAt: new Date(),
+            }
+          : book
+      ),
+    }));
   },
 }));

@@ -42,13 +42,25 @@ export interface Book {
   coverPath: string | null;
   filePath: string;
   format: BookFormat;
+  fileSize: number; // in bytes
   addedAt: Date;
   lastReadAt: Date | null;
-  progress: number; // 0-100
-  currentLocation: string | null; // CFI for EPUB, chapter index otherwise
   languagePair: LanguagePair;
   proficiencyLevel: ProficiencyLevel;
   wordDensity: number; // 0.0 - 1.0
+
+  // Reading Progress
+  progress: number; // 0-100 percentage
+  currentLocation: string | null; // CFI for EPUB, chapter index otherwise
+  currentChapter: number; // Current chapter index
+  totalChapters: number; // Total number of chapters
+  currentPage: number; // Estimated current page
+  totalPages: number; // Estimated total pages
+  readingTimeMinutes: number; // Total reading time in minutes
+
+  // Download/Source info
+  sourceUrl?: string; // Original download URL if downloaded
+  isDownloaded: boolean; // Whether the file is stored locally
 }
 
 export interface BookMetadata {
@@ -197,6 +209,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Reader: {bookId: string};
   BookDetail: {bookId: string};
+  BookDiscovery: undefined;
   VocabularyDetail: {wordId: string};
   Settings: undefined;
   LanguageSettings: undefined;

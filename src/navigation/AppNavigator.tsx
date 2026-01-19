@@ -9,7 +9,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 
 import type {RootStackParamList, MainTabsParamList} from '@types/index';
 
-// Screens (to be implemented)
+// Screens
 import {LibraryScreen} from '@screens/Library/LibraryScreen';
 import {VocabularyScreen} from '@screens/Vocabulary/VocabularyScreen';
 import {StatisticsScreen} from '@screens/Statistics/StatisticsScreen';
@@ -17,6 +17,7 @@ import {ProfileScreen} from '@screens/Profile/ProfileScreen';
 import {ReaderScreen} from '@screens/Reader/ReaderScreen';
 import {SettingsScreen} from '@screens/Settings/SettingsScreen';
 import {OnboardingScreen} from '@screens/Onboarding/OnboardingScreen';
+import {BookDiscoveryScreen} from '@screens/BookDiscovery/BookDiscoveryScreen';
 
 // Icons (placeholder - will use actual icons)
 import {TabBarIcon} from '@components/common/TabBarIcon';
@@ -104,6 +105,13 @@ export function AppNavigator(): React.JSX.Element {
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="BookDiscovery"
+          component={BookDiscoveryScreen}
           options={{
             animation: 'slide_from_right',
           }}

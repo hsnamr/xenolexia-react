@@ -1,17 +1,23 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Xenolexia React Native",
   "compilerOptions": {
+    // Language and Environment
     "target": "esnext",
-    "module": "commonjs",
     "lib": ["es2022"],
-    "allowJs": true,
     "jsx": "react-native",
-    "noEmit": true,
-    "isolatedModules": true,
-    "strict": true,
+
+    // Modules
+    "module": "commonjs",
     "moduleResolution": "node",
-    "baseUrl": "./",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Path Aliases
+    "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@app/*": ["src/app/*"],
       "@components/*": ["src/components/*"],
       "@screens/*": ["src/screens/*"],
       "@services/*": ["src/services/*"],
@@ -23,16 +29,46 @@
       "@assets/*": ["src/assets/*"],
       "@navigation/*": ["src/navigation/*"]
     },
+
+    // Emit
+    "noEmit": true,
+
+    // Interop
+    "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
+
+    // Type Checking
+    "strict": true,
+    "noImplicitAny": true,
     "noImplicitReturns": true,
+    "noImplicitThis": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "useUnknownInCatchVariables": true,
+
+    // Additional Checks
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*", "index.js", "App.tsx", "__tests__/**/*"],
-  "exclude": ["node_modules", "babel.config.js", "metro.config.js", "jest.config.js"]
+  "include": [
+    "src/**/*",
+    "App.tsx",
+    "index.js",
+    "__tests__/**/*",
+    "*.config.js",
+    "*.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "coverage",
+    ".expo"
+  ]
 }

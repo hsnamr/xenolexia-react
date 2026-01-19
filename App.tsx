@@ -11,7 +11,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 
 import {AppNavigator} from '@navigation/AppNavigator';
-import {ThemeProvider} from '@/app/ThemeProvider';
+import {ThemeProvider} from '@app/ThemeProvider';
 
 // Create a client for React Query
 const queryClient = new QueryClient({

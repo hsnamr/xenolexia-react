@@ -117,32 +117,40 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 
 ---
 
-## Day 4: SQLite Database Implementation 💾
+## Day 4: SQLite Database Implementation 💾 ✅
 
 **Goal:** Persist book data in SQLite database.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Implement SQLite connection and initialization
-- [ ] Create books table schema
-- [ ] Implement CRUD operations for books
-- [ ] Add reading progress table
-- [ ] Implement database migrations
-- [ ] Connect libraryStore to database
+- [x] Implement SQLite connection and initialization
+- [x] Create books table schema with migrations
+- [x] Implement CRUD operations for books (BookRepository)
+- [x] Add vocabulary and reading sessions repositories
+- [x] Implement database migrations system
+- [x] Connect libraryStore to database
+- [x] Add SM-2 spaced repetition in VocabularyRepository
+- [x] Add reading streak calculation in SessionRepository
 
 ### Deliverables
 
-- SQLite database initialized on app start
-- Books persisted across app restarts
-- Reading progress saved to database
-- Database migrations for schema updates
+- ✅ DatabaseService with SQLite connection and migrations
+- ✅ BookRepository with full CRUD, filtering, sorting, search
+- ✅ VocabularyRepository with SRS review support
+- ✅ SessionRepository with streak calculation and statistics
+- ✅ libraryStore connected to database with async operations
+- ✅ Selectors for in-progress, completed, recently read books
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/services/StorageService/DatabaseService.ts` - SQLite operations
-- `src/services/StorageService/migrations/` - Migration files
-- `src/services/StorageService/repositories/BookRepository.ts` - Book queries
-- `src/stores/libraryStore.ts` - Connect to database
+- `src/services/StorageService/DatabaseService.ts` - SQLite connection, migrations, query helpers
+- `src/services/StorageService/repositories/BookRepository.ts` - Book CRUD and queries
+- `src/services/StorageService/repositories/VocabularyRepository.ts` - Vocabulary with SRS
+- `src/services/StorageService/repositories/SessionRepository.ts` - Sessions and statistics
+- `src/services/StorageService/repositories/index.ts` - Repository exports
+- `src/services/StorageService/index.ts` - Updated exports
+- `src/stores/libraryStore.ts` - Connected to database with persistence
 
 ---
 
@@ -184,7 +192,7 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 | Day 1 | ✅ Complete | Jan 20 | ImportService, document picker, progress modal           |
 | Day 2 | ✅ Complete | Jan 20 | EPUB parsing, metadata extraction, TOC, cover extraction |
 | Day 3 | ✅ Complete | Jan 20 | ImageService, caching, thumbnails, BookCover component   |
-| Day 4 | ⏳ Pending  |        |                                                          |
+| Day 4 | ✅ Complete | Jan 20 | SQLite database, repositories, libraryStore persistence  |
 | Day 5 | ⏳ Pending  |        |                                                          |
 
 ---

@@ -78,6 +78,9 @@ global.console = {
   error: jest.fn(),
 };
 
+// Add jest-native matchers for better assertions
+import '@testing-library/jest-native/extend-expect';
+
 // Add custom matchers if needed
 expect.extend({
   // Custom matchers can be added here

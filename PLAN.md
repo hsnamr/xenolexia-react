@@ -9,48 +9,42 @@ This document outlines the complete development roadmap for Xenolexia, from init
 ## 📅 Development Phases
 
 ### Phase 0: Project Setup (Week 1)
-**Status: IN PROGRESS**
+**Status: ✅ COMPLETED**
 
 #### 0.1 Environment Configuration
 - [x] Create project structure
 - [x] Initialize React Native with TypeScript
 - [x] Set up Git repository
-- [ ] Configure ESLint + Prettier
-- [ ] Set up Husky pre-commit hooks
-- [ ] Configure path aliases (@components, @services, etc.)
+- [x] Configure ESLint + Prettier
+- [x] Set up Husky pre-commit hooks
+- [x] Configure path aliases (@components, @services, etc.)
 
 #### 0.2 Core Dependencies Installation
-```bash
-# Navigation
-npm install @react-navigation/native @react-navigation/stack @react-navigation/bottom-tabs
-npm install react-native-screens react-native-safe-area-context react-native-gesture-handler
-
-# State Management
-npm install zustand @tanstack/react-query
-
-# Storage
-npm install @react-native-async-storage/async-storage react-native-sqlite-storage
-
-# File System
-npm install react-native-fs react-native-document-picker
-
-# UI/Styling
-npm install nativewind tailwindcss
-npm install react-native-reanimated
-
-# Book Parsing
-npm install epubjs jszip
-npm install react-native-webview # For EPUB rendering
-
-# Utils
-npm install lodash date-fns uuid
-```
+- [x] All core dependencies installed (see package.json)
+- [x] Navigation: @react-navigation/native, bottom-tabs, native-stack
+- [x] State Management: zustand, @tanstack/react-query
+- [x] Storage: @react-native-async-storage/async-storage, react-native-sqlite-storage
+- [x] File System: react-native-fs, react-native-document-picker
+- [x] UI/Styling: nativewind, tailwindcss, react-native-reanimated
+- [x] Book Parsing: epubjs, jszip, react-native-webview
+- [x] Utils: lodash, date-fns, uuid, react-native-svg
 
 #### 0.3 Initial App Structure
-- [ ] Create navigation skeleton
-- [ ] Implement basic screens (Library, Reader, Vocabulary, Settings)
-- [ ] Set up theme provider
-- [ ] Configure fonts and base styles
+- [x] Create navigation skeleton with Stack + Bottom Tabs
+- [x] Implement basic screens (Library, Reader, Vocabulary, Statistics, Settings, Profile)
+- [x] Set up theme provider with Light/Dark/Sepia modes
+- [x] Configure fonts and base styles (Inter, Merriweather, JetBrains Mono)
+- [x] Create reusable UI components (Text, Button, Card, Input, ThemeSwitcher)
+- [x] Set up deep linking configuration
+- [x] Implement SVG-based tab bar icons
+
+#### 0.4 Quality & Testing (Completed)
+- [x] Jest test configuration with path aliases
+- [x] Test utilities for rendering with providers
+- [x] Navigation smoke tests
+- [x] Screen component tests (Library, Vocabulary)
+- [x] UI component tests (Text, Button, Card, Input)
+- [x] Store tests (vocabularyStore, utils)
 
 ---
 

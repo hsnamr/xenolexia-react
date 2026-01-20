@@ -5,13 +5,15 @@
  */
 
 import React from 'react';
+
 import {StatusBar} from 'react-native';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {GestureHandlerRootView} from 'react-native-gesture-handler';
 
 import {AppNavigator} from '@navigation/AppNavigator';
-import {ThemeProvider} from '@app/ThemeProvider';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+
+import {ThemeProvider, useIsDark} from '@/theme';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -23,14 +25,39 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Theme-aware status bar
+ */
+function ThemedStatusBar() {
+  const isDark = useIsDark();
+  return (
+    <StatusBar
+      barStyle={isDark ? 'light-content' : 'dark-content'}
+      backgroundColor="transparent"
+      translucent
+    />
+  );
+}
+
+/**
+ * Main App with all providers
+ */
+function AppContent(): React.JSX.Element {
+  return (
+    <>
+      <ThemedStatusBar />
+      <AppNavigator />
+    </>
+  );
+}
+
 function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <ThemeProvider>
-            <StatusBar barStyle="dark-content" />
-            <AppNavigator />
+            <AppContent />
           </ThemeProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

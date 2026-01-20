@@ -9,29 +9,32 @@
  */
 
 import React, {useCallback, useMemo} from 'react';
+
 import {Platform, StyleSheet, View, Text} from 'react-native';
+
+import {TabBarIcon} from '@components/common/TabBarIcon';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {NavigationContainer, DefaultTheme, DarkTheme} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-
-import type {RootStackParamList, MainTabsParamList} from './types';
-import {linkingConfig} from './linking';
-
-// Screens
+import {BookDiscoveryScreen} from '@screens/BookDiscovery/BookDiscoveryScreen';
 import {LibraryScreen} from '@screens/Library/LibraryScreen';
-import {VocabularyScreen} from '@screens/Vocabulary/VocabularyScreen';
-import {StatisticsScreen} from '@screens/Statistics/StatisticsScreen';
+import {OnboardingScreen} from '@screens/Onboarding/OnboardingScreen';
 import {ProfileScreen} from '@screens/Profile/ProfileScreen';
 import {ReaderScreen} from '@screens/Reader/ReaderScreen';
+import {StatisticsScreen} from '@screens/Statistics/StatisticsScreen';
+import {VocabularyScreen} from '@screens/Vocabulary/VocabularyScreen';
+
+import {useTheme} from '@/theme';
+import {linkingConfig} from './linking';
+import type {RootStackParamList, MainTabsParamList} from './types';
+
+// Screens
 import {SettingsScreen} from '@screens/Settings/SettingsScreen';
-import {OnboardingScreen} from '@screens/Onboarding/OnboardingScreen';
-import {BookDiscoveryScreen} from '@screens/BookDiscovery/BookDiscoveryScreen';
 
 // Components
-import {TabBarIcon} from '@components/common/TabBarIcon';
 
 // Hooks
-import {useTheme} from '@/app/ThemeProvider';
+
 import {useUserStore} from '@stores/userStore';
 
 // Create navigators
@@ -121,7 +124,8 @@ function MainTabs(): React.JSX.Element {
         tabBarStyle,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarHideOnKeyboard: true,
-      }}>
+      }}
+    >
       <Tab.Screen
         name="Library"
         component={LibraryScreen}
@@ -201,7 +205,8 @@ export function AppNavigator(): React.JSX.Element {
       theme={navigationTheme}
       linking={linkingConfig}
       onReady={onReady}
-      fallback={<LoadingScreen />}>
+      fallback={<LoadingScreen />}
+    >
       <Stack.Navigator
         initialRouteName={initialRouteName}
         screenOptions={{
@@ -210,7 +215,8 @@ export function AppNavigator(): React.JSX.Element {
           animationDuration: 250,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
-        }}>
+        }}
+      >
         {/* Onboarding */}
         <Stack.Screen
           name="Onboarding"

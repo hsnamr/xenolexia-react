@@ -18,3 +18,14 @@ export type {
   EbookSearchResult,
   LocalEbookFile,
 } from './BookDownloadService';
+
+export {ImportService, SUPPORTED_EXTENSIONS, SUPPORTED_MIME_TYPES} from './ImportService';
+export type {
+  ImportProgress,
+  ImportResult,
+  ImportOptions,
+  SelectedFile,
+  CopiedFileInfo,
+  ImportedBookMetadata,
+  ImportStatus,
+} from './ImportService';

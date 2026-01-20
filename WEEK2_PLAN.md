@@ -40,59 +40,71 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 
 ---
 
-## Day 2: EPUB Metadata Parsing 📖
+## Day 2: EPUB Metadata Parsing 📖 ✅
 
 **Goal:** Extract book metadata from EPUB files.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Implement EPUB package.opf parsing
-- [ ] Extract title, author, description
-- [ ] Extract language and publisher info
-- [ ] Parse table of contents (toc.ncx/nav.xhtml)
-- [ ] Handle different EPUB versions (2.0, 3.0)
-- [ ] Create metadata extraction utilities
+- [x] Implement EPUB package.opf parsing
+- [x] Extract title, author, description
+- [x] Extract language and publisher info
+- [x] Parse table of contents (toc.ncx/nav.xhtml)
+- [x] Handle different EPUB versions (2.0, 3.0)
+- [x] Create metadata extraction utilities
+- [x] Update ImportService to use real parsing
+- [x] Extract cover images from EPUB
 
 ### Deliverables
 
-- EPUB files are parsed for metadata
-- Title, author, description extracted
-- Table of contents structure parsed
-- Support for EPUB 2.0 and 3.0
+- ✅ EPUB files are parsed for metadata using JSZip
+- ✅ Title, author, description, publisher, ISBN extracted
+- ✅ Table of contents structure parsed (NCX for EPUB 2, NAV for EPUB 3)
+- ✅ Support for EPUB 2.0 and 3.0
+- ✅ Cover image extraction and storage
+- ✅ MetadataExtractor high-level API
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/services/BookParser/EPUBParser.ts` - Enhanced parsing
-- `src/services/BookParser/MetadataExtractor.ts` - Metadata extraction
-- `src/services/BookParser/TOCParser.ts` - Table of contents parsing
-- `src/services/BookParser/types.ts` - Parser types
+- `src/services/BookParser/EPUBExtractor.ts` - Low-level ZIP/XML parsing
+- `src/services/BookParser/TOCParser.ts` - NCX and NAV parsing
+- `src/services/BookParser/MetadataExtractor.ts` - High-level metadata API
+- `src/services/BookParser/EPUBParser.ts` - Updated to use real parsing
+- `src/services/BookParser/index.ts` - Updated exports
+- `src/services/ImportService/ImportService.ts` - Uses MetadataExtractor
+- `src/services/ImportService/types.ts` - Added subjects field
+- `src/types/index.ts` - Added subjects to BookMetadata
 
 ---
 
-## Day 3: Cover Image Extraction & Storage 🖼️
+## Day 3: Image Service & Thumbnails 🖼️
 
-**Goal:** Extract and store book cover images.
+**Goal:** Create image service for thumbnails and caching.
+
+> Note: Basic cover extraction was completed in Day 2 as part of MetadataExtractor.
 
 ### Tasks
 
-- [ ] Extract cover image from EPUB
-- [ ] Handle different cover image formats (jpg, png, svg)
-- [ ] Store cover images in app storage
-- [ ] Generate thumbnails for grid view
+- [ ] Create ImageService for image operations
+- [ ] Generate thumbnails for grid view performance
+- [ ] Implement image caching with memory/disk layers
+- [ ] Create BookCover component with loading states
 - [ ] Implement placeholder for books without covers
-- [ ] Create image caching strategy
+- [ ] Add cover image preview in import flow
 
 ### Deliverables
 
-- Cover images extracted from EPUBs
-- Images stored locally with proper naming
-- Thumbnails generated for performance
-- Fallback UI for missing covers
+- ImageService with resize/thumbnail capabilities
+- Cached cover images with fast loading
+- Thumbnails generated for grid view
+- BookCover component with fallback UI
 
 ### Files to Create/Update
 
-- `src/services/BookParser/CoverExtractor.ts` - Cover extraction
 - `src/services/ImageService/ImageService.ts` - Image operations
+- `src/services/ImageService/ThumbnailGenerator.ts` - Thumbnail creation
+- `src/services/ImageService/ImageCache.ts` - Caching logic
 - `src/services/ImageService/index.ts` - Exports
 - `src/components/library/BookCover.tsx` - Cover display component
 
@@ -160,13 +172,13 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 
 ## Progress Tracking
 
-| Day   | Status      | Date   | Notes                                          |
-| ----- | ----------- | ------ | ---------------------------------------------- |
-| Day 1 | ✅ Complete | Jan 20 | ImportService, document picker, progress modal |
-| Day 2 | ⏳ Pending  |        |                                                |
-| Day 3 | ⏳ Pending  |        |                                                |
-| Day 4 | ⏳ Pending  |        |                                                |
-| Day 5 | ⏳ Pending  |        |                                                |
+| Day   | Status      | Date   | Notes                                                    |
+| ----- | ----------- | ------ | -------------------------------------------------------- |
+| Day 1 | ✅ Complete | Jan 20 | ImportService, document picker, progress modal           |
+| Day 2 | ✅ Complete | Jan 20 | EPUB parsing, metadata extraction, TOC, cover extraction |
+| Day 3 | ⏳ Pending  |        |                                                          |
+| Day 4 | ⏳ Pending  |        |                                                          |
+| Day 5 | ⏳ Pending  |        |                                                          |
 
 ---
 

@@ -5,15 +5,12 @@
  * Supports EPUB, MOBI, FB2, and TXT formats.
  */
 
-import {Platform} from 'react-native';
-import DocumentPicker, {
-  types,
-  DocumentPickerResponse,
-} from 'react-native-document-picker';
+import DocumentPicker, {types} from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import {v4 as uuidv4} from 'uuid';
 
 import type {BookFormat} from '@/types';
+import {MetadataExtractor} from '@services/BookParser';
 import type {
   ImportProgress,
   ImportResult,
@@ -251,18 +248,30 @@ export class ImportService {
   }
 
   /**
-   * Parse EPUB metadata
-   * TODO: Implement full EPUB parsing in Day 2
+   * Parse EPUB metadata using MetadataExtractor
    */
   private static async parseEPUBMetadata(
     filePath: string,
   ): Promise<Partial<ImportedBookMetadata>> {
-    // Placeholder - will be implemented in Day 2 with full EPUB parsing
-    // For now, return empty metadata
-    console.log('Parsing EPUB metadata from:', filePath);
-    return {
-      // Basic metadata will be extracted from the EPUB OPF file
-    };
+    const extractor = new MetadataExtractor();
+
+    try {
+      const extracted = await extractor.extractFromFile(filePath);
+
+      return {
+        title: extracted.metadata.title,
+        author: extracted.metadata.author,
+        description: extracted.metadata.description,
+        publisher: extracted.metadata.publisher,
+        publishDate: extracted.metadata.publishDate,
+        isbn: extracted.metadata.isbn,
+        language: extracted.language,
+        totalChapters: extracted.chapterCount,
+        subjects: extracted.metadata.subjects,
+      };
+    } finally {
+      extractor.dispose();
+    }
   }
 
   /**
@@ -290,15 +299,23 @@ export class ImportService {
 
   /**
    * Extract cover image from EPUB
-   * TODO: Implement in Day 3
    */
   private static async extractCoverImage(
     bookId: string,
     filePath: string,
   ): Promise<string | null> {
-    // Placeholder - will be implemented in Day 3
-    console.log('Extracting cover for book:', bookId, 'from:', filePath);
-    return null;
+    const extractor = new MetadataExtractor();
+
+    try {
+      await extractor.extractFromFile(filePath);
+      const bookDir = `${BOOKS_BASE_DIR}/${bookId}`;
+      return await extractor.extractCover(bookDir);
+    } catch (error) {
+      console.warn('Failed to extract cover image:', error);
+      return null;
+    } finally {
+      extractor.dispose();
+    }
   }
 
   /**

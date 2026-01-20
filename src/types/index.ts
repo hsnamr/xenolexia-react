@@ -65,13 +65,14 @@ export interface Book {
 
 export interface BookMetadata {
   title: string;
-  author: string;
+  author?: string;
   description?: string;
   coverUrl?: string;
   language?: string;
   publisher?: string;
   publishDate?: string;
   isbn?: string;
+  subjects?: string[]; // Genre/categories
 }
 
 export interface Chapter {

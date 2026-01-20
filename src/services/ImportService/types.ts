@@ -66,7 +66,7 @@ export interface ImportResult {
  */
 export interface ImportedBookMetadata {
   title: string;
-  author: string;
+  author?: string;
   description?: string;
   language?: string;
   publisher?: string;
@@ -77,6 +77,7 @@ export interface ImportedBookMetadata {
   fileSize: number;
   totalChapters?: number;
   estimatedPages?: number;
+  subjects?: string[];
 }
 
 /**

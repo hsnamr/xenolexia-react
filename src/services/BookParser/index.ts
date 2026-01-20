@@ -2,6 +2,32 @@
  * Book Parser Service - Parses various e-book formats
  */
 
+// Main service and parser
 export {BookParserService} from './BookParserService';
 export {EPUBParser} from './EPUBParser';
-export type {IBookParser} from './types';
+
+// Low-level utilities
+export {EPUBExtractor} from './EPUBExtractor';
+export type {
+  EPUBContainer,
+  EPUBManifestItem,
+  EPUBSpineItem,
+  EPUBPackage,
+  EPUBRawMetadata,
+} from './EPUBExtractor';
+
+// TOC parsing
+export {parseNCX, parseNAV, flattenTOC, countTOCItems, findTOCItemByHref} from './TOCParser';
+export type {TOCParseResult, PageListItem} from './TOCParser';
+
+// Metadata extraction
+export {
+  MetadataExtractor,
+  extractEPUBMetadata,
+  extractEPUBInfo,
+  extractEPUBCover,
+} from './MetadataExtractor';
+export type {ExtractedMetadata, CoverExtractionResult} from './MetadataExtractor';
+
+// Types
+export type {IBookParser, SearchResult, ParserOptions} from './types';

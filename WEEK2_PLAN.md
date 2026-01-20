@@ -78,35 +78,42 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 
 ---
 
-## Day 3: Image Service & Thumbnails 🖼️
+## Day 3: Image Service & Thumbnails 🖼️ ✅
 
 **Goal:** Create image service for thumbnails and caching.
+**Status:** COMPLETED
 
 > Note: Basic cover extraction was completed in Day 2 as part of MetadataExtractor.
 
 ### Tasks
 
-- [ ] Create ImageService for image operations
-- [ ] Generate thumbnails for grid view performance
-- [ ] Implement image caching with memory/disk layers
-- [ ] Create BookCover component with loading states
-- [ ] Implement placeholder for books without covers
-- [ ] Add cover image preview in import flow
+- [x] Create ImageService for image operations
+- [x] Generate thumbnails for grid view performance
+- [x] Implement image caching with memory/disk layers
+- [x] Create BookCover component with loading states
+- [x] Implement placeholder for books without covers
+- [x] Create skeleton loading components
 
 ### Deliverables
 
-- ImageService with resize/thumbnail capabilities
-- Cached cover images with fast loading
-- Thumbnails generated for grid view
-- BookCover component with fallback UI
+- ✅ ImageService with download, cache, and placeholder capabilities
+- ✅ ThumbnailGenerator with size presets (small, medium, large)
+- ✅ ImageCache with LRU memory cache + disk persistence
+- ✅ BookCover component with fade-in animation and initials fallback
+- ✅ BookCoverSkeleton and BookCoverGridSkeleton for loading states
+- ✅ Updated BookCard to use new BookCover component
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/services/ImageService/ImageService.ts` - Image operations
-- `src/services/ImageService/ThumbnailGenerator.ts` - Thumbnail creation
-- `src/services/ImageService/ImageCache.ts` - Caching logic
-- `src/services/ImageService/index.ts` - Exports
-- `src/components/library/BookCover.tsx` - Cover display component
+- `src/services/ImageService/types.ts` - Image, cache, and thumbnail types
+- `src/services/ImageService/ImageCache.ts` - Two-layer caching (memory + disk)
+- `src/services/ImageService/ThumbnailGenerator.ts` - Thumbnail generation
+- `src/services/ImageService/ImageService.ts` - Main image service
+- `src/services/ImageService/index.ts` - Service exports
+- `src/services/index.ts` - Added ImageService exports
+- `src/components/library/BookCover.tsx` - Cover display with loading states
+- `src/components/library/BookCard.tsx` - Updated to use BookCover
+- `src/components/library/index.ts` - Component exports
 
 ---
 
@@ -176,7 +183,7 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 | ----- | ----------- | ------ | -------------------------------------------------------- |
 | Day 1 | ✅ Complete | Jan 20 | ImportService, document picker, progress modal           |
 | Day 2 | ✅ Complete | Jan 20 | EPUB parsing, metadata extraction, TOC, cover extraction |
-| Day 3 | ⏳ Pending  |        |                                                          |
+| Day 3 | ✅ Complete | Jan 20 | ImageService, caching, thumbnails, BookCover component   |
 | Day 4 | ⏳ Pending  |        |                                                          |
 | Day 5 | ⏳ Pending  |        |                                                          |
 

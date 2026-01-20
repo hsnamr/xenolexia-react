@@ -29,3 +29,19 @@ export type {
   ImportedBookMetadata,
   ImportStatus,
 } from './ImportService';
+
+export {ImageService, ImageCache, ThumbnailGenerator, THUMBNAIL_SIZES} from './ImageService';
+export type {
+  ImageDimensions,
+  ResizeOptions,
+  ThumbnailOptions,
+  ThumbnailSize,
+  CacheEntry,
+  CacheStats,
+  CacheOptions,
+  ImageLoadStatus,
+  ImageLoadResult,
+  ImageSource,
+  PlaceholderType,
+  PlaceholderOptions,
+} from './ImageService';

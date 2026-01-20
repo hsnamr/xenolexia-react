@@ -3,12 +3,14 @@
  */
 
 import React from 'react';
-import {View, StyleSheet, TouchableOpacity, Image, Dimensions} from 'react-native';
+import {View, StyleSheet, TouchableOpacity, Dimensions} from 'react-native';
 
 import {useColors} from '@/theme';
 import {spacing, borderRadius} from '@/theme/tokens';
 import {Text} from '@components/ui';
 import type {Book} from '@/types';
+
+import {BookCover} from './BookCover';
 
 interface BookCardProps {
   book: Book;
@@ -42,23 +44,14 @@ export function BookCard({book, onPress}: BookCardProps): React.JSX.Element {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
       {/* Book Cover */}
-      <View style={[styles.coverContainer, {backgroundColor: colors.surfaceHover}]}>
-        {book.coverPath ? (
-          <Image source={{uri: book.coverPath}} style={styles.cover} resizeMode="cover" />
-        ) : (
-          <View style={[styles.placeholderCover, {backgroundColor: colors.primaryLight}]}>
-            <Text variant="displaySmall">📖</Text>
-            <Text
-              variant="labelSmall"
-              customColor={colors.primary}
-              center
-              numberOfLines={3}
-              style={styles.placeholderTitle}
-            >
-              {book.title}
-            </Text>
-          </View>
-        )}
+      <View style={styles.coverWrapper}>
+        <BookCover
+          bookId={book.id}
+          coverPath={book.coverPath}
+          title={book.title}
+          size="medium"
+          width="100%"
+        />
 
         {/* Progress Bar */}
         {hasProgress && (
@@ -108,14 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
     width: cardWidth,
   },
-  cover: {
-    height: '100%',
-    width: '100%',
-  },
-  coverContainer: {
-    aspectRatio: 0.65,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
+  coverWrapper: {
     position: 'relative',
     width: '100%',
   },
@@ -128,16 +114,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing[2],
     top: spacing[2],
-  },
-  placeholderCover: {
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'center',
-    padding: spacing[4],
-    width: '100%',
-  },
-  placeholderTitle: {
-    marginTop: spacing[2],
+    zIndex: 10,
   },
   progressBadge: {
     borderRadius: borderRadius.sm,
@@ -146,6 +123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[1.5],
     paddingVertical: spacing[0.5],
     position: 'absolute',
+    zIndex: 10,
   },
   progressBar: {
     borderRadius: borderRadius.full,
@@ -158,6 +136,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
+    zIndex: 10,
   },
   title: {
     lineHeight: 18,

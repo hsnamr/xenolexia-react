@@ -29,6 +29,7 @@ interface StatisticsState {
   recordWordSaved: () => void;
   updateStats: (updates: Partial<ReadingStats>) => void;
   loadStats: () => Promise<void>;
+  refreshStats: () => Promise<void>;
   resetDailyStats: () => void;
 }
 
@@ -128,6 +129,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       console.error('Failed to load stats:', error);
       set({isLoading: false});
     }
+  },
+
+  refreshStats: async () => {
+    // Alias for loadStats - used for pull-to-refresh
+    await get().loadStats();
   },
 
   resetDailyStats: () => {

@@ -3,40 +3,73 @@
  */
 
 import React from 'react';
+import {View, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
 
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
-
-import {useNavigation} from '@react-navigation/native';
-import {useUserStore} from '@stores/userStore';
 import {SafeAreaView} from 'react-native-safe-area-context';
-
+import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {RootStackParamList} from '@types/index';
+
+import {useColors} from '@/theme';
+import {spacing, borderRadius} from '@/theme/tokens';
+import type {RootStackParamList} from '@/types';
+
+import {useUserStore} from '@stores/userStore';
+import {ScreenHeader} from '@components/common';
+import {Text, Card, ThemeSwitcher} from '@components/ui';
+import {ChevronRightIcon} from '@components/common/TabBarIcon';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// ============================================================================
+// Menu Item Component
+// ============================================================================
 
 interface MenuItemProps {
   icon: string;
   title: string;
   subtitle?: string;
   onPress: () => void;
+  showChevron?: boolean;
 }
 
-function MenuItem({icon, title, subtitle, onPress}: MenuItemProps): React.JSX.Element {
+function MenuItem({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  showChevron = true,
+}: MenuItemProps): React.JSX.Element {
+  const colors = useColors();
+
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <Text style={styles.menuIcon}>{icon}</Text>
+    <TouchableOpacity
+      style={[styles.menuItem, {borderBottomColor: colors.divider}]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text variant="bodyLarge" style={styles.menuIcon}>
+        {icon}
+      </Text>
       <View style={styles.menuTextContainer}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+        <Text variant="bodyMedium">{title}</Text>
+        {subtitle && (
+          <Text variant="bodySmall" color="secondary" style={styles.menuSubtitle}>
+            {subtitle}
+          </Text>
+        )}
       </View>
-      <Text style={styles.chevron}>›</Text>
+      {showChevron && <ChevronRightIcon color={colors.textTertiary} size={20} />}
     </TouchableOpacity>
   );
 }
 
+// ============================================================================
+// Profile Screen
+// ============================================================================
+
 export function ProfileScreen(): React.JSX.Element {
   const navigation = useNavigation<ProfileNavigationProp>();
+  const colors = useColors();
   const {preferences} = useUserStore();
 
   const getLanguageName = (code: string): string => {
@@ -48,6 +81,11 @@ export function ProfileScreen(): React.JSX.Element {
       de: 'German',
       it: 'Italian',
       pt: 'Portuguese',
+      ru: 'Russian',
+      ja: 'Japanese',
+      zh: 'Chinese',
+      ko: 'Korean',
+      ar: 'Arabic',
     };
     return names[code] || code;
   };
@@ -61,162 +99,185 @@ export function ProfileScreen(): React.JSX.Element {
     return labels[level] || level;
   };
 
+  const handleNavigateSettings = () => {
+    navigation.navigate('Settings');
+  };
+
+  const handleNavigateAbout = () => {
+    navigation.navigate('About');
+  };
+
+  const handleExportData = () => {
+    navigation.navigate('DataManagement');
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👤</Text>
+          <View style={[styles.avatar, {backgroundColor: colors.primaryLight}]}>
+            <Text variant="displaySmall">👤</Text>
           </View>
-          <Text style={styles.title}>Profile</Text>
+          <Text variant="headlineMedium" style={styles.name}>
+            Reader
+          </Text>
+          <Text variant="bodyMedium" color="secondary">
+            Learning {getLanguageName(preferences.defaultTargetLanguage)}
+          </Text>
+        </View>
+
+        {/* Theme Selection */}
+        <View style={styles.section}>
+          <Text variant="labelMedium" color="secondary" uppercase style={styles.sectionTitle}>
+            Appearance
+          </Text>
+          <Card variant="outlined" padding="md">
+            <ThemeSwitcher />
+          </Card>
         </View>
 
         {/* Language Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Language Learning</Text>
-          <View style={styles.menuContainer}>
+          <Text variant="labelMedium" color="secondary" uppercase style={styles.sectionTitle}>
+            Language Learning
+          </Text>
+          <Card variant="filled" padding="none">
             <MenuItem
               icon="🌐"
               title="Target Language"
               subtitle={getLanguageName(preferences.defaultTargetLanguage)}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={handleNavigateSettings}
             />
             <MenuItem
               icon="📊"
               title="Proficiency Level"
               subtitle={getProficiencyLabel(preferences.defaultProficiencyLevel)}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={handleNavigateSettings}
             />
             <MenuItem
               icon="🎚️"
               title="Word Density"
-              subtitle={`${Math.round(preferences.defaultWordDensity * 100)}%`}
-              onPress={() => navigation.navigate('Settings')}
+              subtitle={`${Math.round(preferences.defaultWordDensity * 100)}% foreign words`}
+              onPress={handleNavigateSettings}
             />
-          </View>
+          </Card>
         </View>
 
         {/* Reader Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reader</Text>
-          <View style={styles.menuContainer}>
+          <Text variant="labelMedium" color="secondary" uppercase style={styles.sectionTitle}>
+            Reader
+          </Text>
+          <Card variant="filled" padding="none">
             <MenuItem
               icon="🎨"
-              title="Appearance"
-              subtitle="Theme, fonts, and layout"
-              onPress={() => navigation.navigate('Settings')}
+              title="Reader Appearance"
+              subtitle="Fonts, spacing, and layout"
+              onPress={() => navigation.navigate('ReaderSettings')}
             />
             <MenuItem
-              icon="📱"
-              title="Display"
-              subtitle="Brightness and orientation"
-              onPress={() => navigation.navigate('Settings')}
+              icon="🔤"
+              title="Typography"
+              subtitle={`${preferences.readerSettings.fontSize}px • ${preferences.readerSettings.fontFamily}`}
+              onPress={() => navigation.navigate('ReaderSettings')}
             />
-          </View>
+          </Card>
         </View>
 
         {/* App Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App</Text>
-          <View style={styles.menuContainer}>
+          <Text variant="labelMedium" color="secondary" uppercase style={styles.sectionTitle}>
+            App
+          </Text>
+          <Card variant="filled" padding="none">
             <MenuItem
               icon="🔔"
               title="Notifications"
               subtitle={preferences.notificationsEnabled ? 'Enabled' : 'Disabled'}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigation.navigate('NotificationSettings')}
+            />
+            <MenuItem
+              icon="🎯"
+              title="Daily Goal"
+              subtitle={`${preferences.dailyGoal} minutes`}
+              onPress={handleNavigateSettings}
             />
             <MenuItem
               icon="💾"
               title="Data & Storage"
-              onPress={() => navigation.navigate('Settings')}
+              onPress={handleExportData}
             />
-            <MenuItem icon="📤" title="Export Data" onPress={() => {}} />
-            <MenuItem icon="ℹ️" title="About Xenolexia" onPress={() => {}} />
-          </View>
+            <MenuItem
+              icon="ℹ️"
+              title="About Xenolexia"
+              onPress={handleNavigateAbout}
+            />
+          </Card>
         </View>
 
-        <Text style={styles.version}>Version 0.1.0</Text>
+        {/* Version */}
+        <Text variant="bodySmall" color="tertiary" center style={styles.version}>
+          Xenolexia v0.1.0 • Built with ❤️
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 40,
-    height: 80,
+    borderRadius: 50,
+    height: 100,
     justifyContent: 'center',
-    marginBottom: 12,
-    width: 80,
-  },
-  avatarText: {
-    fontSize: 40,
-  },
-  chevron: {
-    color: '#9ca3af',
-    fontSize: 24,
+    marginBottom: spacing[3],
+    width: 100,
   },
   container: {
-    backgroundColor: '#ffffff',
     flex: 1,
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 24,
-  },
-  menuContainer: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 16,
-    overflow: 'hidden',
+    paddingBottom: spacing[6],
+    paddingTop: spacing[4],
   },
   menuIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    marginRight: spacing[3],
   },
   menuItem: {
     alignItems: 'center',
-    borderBottomColor: '#e5e7eb',
     borderBottomWidth: 1,
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
   },
   menuSubtitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    marginTop: 2,
+    marginTop: spacing[0.5],
   },
   menuTextContainer: {
     flex: 1,
   },
-  menuTitle: {
-    color: '#1f2937',
-    fontSize: 16,
-    fontWeight: '500',
+  name: {
+    marginBottom: spacing[1],
+  },
+  scrollContent: {
+    paddingBottom: spacing[8],
   },
   section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    marginBottom: spacing[6],
+    paddingHorizontal: spacing[5],
   },
   sectionTitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
     letterSpacing: 0.5,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: '#1f2937',
-    fontSize: 24,
-    fontWeight: '700',
+    marginBottom: spacing[3],
   },
   version: {
-    color: '#9ca3af',
-    fontSize: 14,
-    paddingVertical: 20,
-    textAlign: 'center',
+    marginTop: spacing[4],
+    paddingBottom: spacing[4],
   },
 });

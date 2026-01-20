@@ -1,145 +1,172 @@
 /**
- * Vocabulary Card - Displays a saved word
+ * Vocabulary Card - Displays a saved word with reveal animation
  */
 
-import React, {useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
-import type {VocabularyItem} from '@types/index';
+import React, {useState, useCallback} from 'react';
+import {View, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager} from 'react-native';
+
+import {useColors} from '@/theme';
+import {spacing, borderRadius} from '@/theme/tokens';
+import {Text, Card} from '@components/ui';
+import type {VocabularyItem} from '@/types';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface VocabularyCardProps {
   item: VocabularyItem;
+  onPress?: () => void;
 }
 
-export function VocabularyCard({item}: VocabularyCardProps): React.JSX.Element {
+export function VocabularyCard({item, onPress}: VocabularyCardProps): React.JSX.Element {
+  const colors = useColors();
   const [isRevealed, setIsRevealed] = useState(false);
 
-  const getStatusColor = (status: string): string => {
+  const getStatusConfig = (status: string): {color: string; label: string} => {
     switch (status) {
       case 'new':
-        return '#0ea5e9';
+        return {color: colors.primary, label: 'New'};
       case 'learning':
-        return '#f59e0b';
+        return {color: '#f59e0b', label: 'Learning'};
       case 'review':
-        return '#8b5cf6';
+        return {color: colors.accent, label: 'Review'};
       case 'learned':
-        return '#10b981';
+        return {color: colors.success, label: 'Mastered'};
       default:
-        return '#6b7280';
+        return {color: colors.textSecondary, label: status};
     }
   };
 
-  const getStatusLabel = (status: string): string => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
+  const handlePress = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsRevealed(!isRevealed);
+  }, [isRevealed]);
+
+  const handleLongPress = useCallback(() => {
+    onPress?.();
+  }, [onPress]);
+
+  const statusConfig = getStatusConfig(item.status);
 
   return (
     <TouchableOpacity
-      style={styles.container}
-      onPress={() => setIsRevealed(!isRevealed)}
-      activeOpacity={0.7}>
-      <View style={styles.header}>
-        <Text style={styles.foreignWord}>{item.targetWord}</Text>
-        <View style={[styles.statusBadge, {backgroundColor: getStatusColor(item.status) + '20'}]}>
-          <Text style={[styles.statusText, {color: getStatusColor(item.status)}]}>
-            {getStatusLabel(item.status)}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      activeOpacity={0.8}
+      delayLongPress={300}
+    >
+      <Card variant="filled" padding="md" style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text variant="headlineSmall" customColor={colors.foreignWord}>
+            {item.targetWord}
           </Text>
-        </View>
-      </View>
-
-      {isRevealed && (
-        <>
-          <Text style={styles.originalWord}>{item.sourceWord}</Text>
-          {item.contextSentence && (
-            <Text style={styles.context} numberOfLines={2}>
-              "{item.contextSentence}"
+          <View style={[styles.statusBadge, {backgroundColor: statusConfig.color + '20'}]}>
+            <Text variant="labelSmall" customColor={statusConfig.color}>
+              {statusConfig.label}
             </Text>
-          )}
-          {item.bookTitle && (
-            <Text style={styles.bookSource}>From: {item.bookTitle}</Text>
-          )}
-        </>
-      )}
+          </View>
+        </View>
 
-      {!isRevealed && <Text style={styles.tapHint}>Tap to reveal</Text>}
+        {/* Revealed content */}
+        {isRevealed ? (
+          <View style={styles.revealedContent}>
+            <Text variant="titleMedium" style={styles.originalWord}>
+              {item.sourceWord}
+            </Text>
 
-      <View style={styles.footer}>
-        <Text style={styles.reviewCount}>
-          Reviews: {item.reviewCount}
-        </Text>
-        {item.lastReviewedAt && (
-          <Text style={styles.lastReviewed}>
-            Next: {item.interval} day{item.interval !== 1 ? 's' : ''}
+            {item.contextSentence && (
+              <Text variant="bodySmall" color="secondary" serif style={styles.context} numberOfLines={2}>
+                "{item.contextSentence}"
+              </Text>
+            )}
+
+            {item.bookTitle && (
+              <Text variant="labelSmall" color="tertiary" style={styles.bookSource}>
+                📖 {item.bookTitle}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <Text variant="bodySmall" color="tertiary" style={styles.tapHint}>
+            Tap to reveal • Long press for details
           </Text>
         )}
-      </View>
+
+        {/* Footer */}
+        <View style={[styles.footer, {borderTopColor: colors.divider}]}>
+          <View style={styles.footerItem}>
+            <Text variant="labelSmall" color="tertiary">
+              Reviews
+            </Text>
+            <Text variant="labelMedium">{item.reviewCount}</Text>
+          </View>
+
+          {item.interval > 0 && (
+            <View style={styles.footerItem}>
+              <Text variant="labelSmall" color="tertiary">
+                Next in
+              </Text>
+              <Text variant="labelMedium">
+                {item.interval} day{item.interval !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.footerItem}>
+            <Text variant="labelSmall" color="tertiary">
+              Ease
+            </Text>
+            <Text variant="labelMedium">{item.easeFactor.toFixed(1)}</Text>
+          </View>
+        </View>
+      </Card>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
+  bookSource: {
+    marginTop: spacing[2],
+  },
   container: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  foreignWord: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#6366f1',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  originalWord: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  tapHint: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
+    marginBottom: spacing[3],
   },
   context: {
-    fontSize: 14,
-    color: '#6b7280',
     fontStyle: 'italic',
-    marginBottom: 8,
     lineHeight: 20,
-  },
-  bookSource: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 8,
+    marginTop: spacing[2],
   },
   footer: {
+    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    marginTop: spacing[3],
+    paddingTop: spacing[3],
   },
-  reviewCount: {
-    fontSize: 12,
-    color: '#6b7280',
+  footerItem: {
+    alignItems: 'center',
   },
-  lastReviewed: {
-    fontSize: 12,
-    color: '#6b7280',
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing[2],
+  },
+  originalWord: {
+    marginTop: spacing[1],
+  },
+  revealedContent: {
+    marginBottom: spacing[1],
+  },
+  statusBadge: {
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[2.5],
+    paddingVertical: spacing[1],
+  },
+  tapHint: {
+    fontStyle: 'italic',
   },
 });

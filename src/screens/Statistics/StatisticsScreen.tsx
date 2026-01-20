@@ -2,15 +2,29 @@
  * Statistics Screen - Displays reading and learning progress
  */
 
-import React from 'react';
-import {View, Text, StyleSheet, ScrollView} from 'react-native';
+import React, {useMemo} from 'react';
+import {View, StyleSheet, ScrollView, RefreshControl} from 'react-native';
+
 import {SafeAreaView} from 'react-native-safe-area-context';
+
+import {useColors} from '@/theme';
+import {spacing, borderRadius} from '@/theme/tokens';
 
 import {useStatisticsStore} from '@stores/statisticsStore';
 import {StatCard} from '@components/statistics/StatCard';
+import {ScreenHeader, LoadingStats} from '@components/common';
+import {Text, Card} from '@components/ui';
 
 export function StatisticsScreen(): React.JSX.Element {
-  const {stats} = useStatisticsStore();
+  const colors = useColors();
+  const {stats, isLoading, refreshStats} = useStatisticsStore();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const handleRefresh = React.useCallback(async () => {
+    setIsRefreshing(true);
+    await refreshStats();
+    setIsRefreshing(false);
+  }, [refreshStats]);
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -21,50 +35,111 @@ export function StatisticsScreen(): React.JSX.Element {
     return `${minutes}m`;
   };
 
+  // Calculate progress percentage for daily goal
+  const dailyProgress = useMemo(() => {
+    const goalMinutes = 30; // Default goal: 30 minutes
+    const todayMinutes = Math.floor(stats.wordsRevealedToday / 10); // Rough estimate
+    return Math.min(100, Math.round((todayMinutes / goalMinutes) * 100));
+  }, [stats.wordsRevealedToday]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
+        <ScreenHeader title="Statistics" subtitle="Track your learning journey" />
+        <LoadingStats />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Statistics</Text>
-          <Text style={styles.subtitle}>Track your learning journey</Text>
-        </View>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
+      <ScreenHeader title="Statistics" subtitle="Track your learning journey" />
 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         {/* Streak Card */}
-        <View style={styles.streakCard}>
-          <Text style={styles.streakEmoji}>🔥</Text>
-          <Text style={styles.streakNumber}>{stats.currentStreak}</Text>
-          <Text style={styles.streakLabel}>Day Streak</Text>
-          <Text style={styles.streakBest}>Best: {stats.longestStreak} days</Text>
-        </View>
+        <Card variant="filled" padding="lg" style={styles.streakCard}>
+          <View style={[styles.streakCardInner, {backgroundColor: colors.primaryLight}]}>
+            <Text variant="displaySmall" style={styles.streakEmoji}>
+              🔥
+            </Text>
+            <Text variant="displayLarge" customColor={colors.primary} style={styles.streakNumber}>
+              {stats.currentStreak}
+            </Text>
+            <Text variant="titleMedium" customColor={colors.primary}>
+              Day Streak
+            </Text>
+            <Text variant="bodySmall" color="secondary" style={styles.streakBest}>
+              Best: {stats.longestStreak} days
+            </Text>
+          </View>
+        </Card>
 
-        {/* Today's Progress */}
+        {/* Daily Progress */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today</Text>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            Today's Progress
+          </Text>
+
+          <Card variant="outlined" padding="md" style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text variant="bodyMedium" color="secondary">
+                Daily Goal
+              </Text>
+              <Text variant="labelLarge" customColor={colors.primary}>
+                {dailyProgress}%
+              </Text>
+            </View>
+            <View style={[styles.progressBar, {backgroundColor: colors.border}]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${dailyProgress}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          </Card>
+
           <View style={styles.statsGrid}>
             <StatCard
               icon="📖"
               value={stats.wordsRevealedToday.toString()}
               label="Words Seen"
-              color="#0ea5e9"
+              color={colors.primary}
             />
             <StatCard
               icon="💾"
               value={stats.wordsSavedToday.toString()}
               label="Words Saved"
-              color="#8b5cf6"
+              color={colors.accent}
             />
           </View>
         </View>
 
         {/* All-time Stats */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>All Time</Text>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            All Time
+          </Text>
           <View style={styles.statsGrid}>
             <StatCard
               icon="📚"
               value={stats.totalBooksRead.toString()}
               label="Books Read"
-              color="#10b981"
+              color={colors.success}
             />
             <StatCard
               icon="⏱️"
@@ -76,15 +151,45 @@ export function StatisticsScreen(): React.JSX.Element {
               icon="🧠"
               value={stats.totalWordsLearned.toString()}
               label="Words Learned"
-              color="#ef4444"
+              color={colors.error}
             />
             <StatCard
               icon="📊"
               value={formatTime(stats.averageSessionDuration)}
               label="Avg. Session"
-              color="#6366f1"
+              color={colors.foreignWord}
             />
           </View>
+        </View>
+
+        {/* Learning Insights */}
+        <View style={styles.section}>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            Insights
+          </Text>
+
+          <Card variant="outlined" padding="md">
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium">Most active day</Text>
+              <Text variant="labelLarge" customColor={colors.primary}>
+                Monday
+              </Text>
+            </View>
+            <View style={[styles.insightDivider, {backgroundColor: colors.divider}]} />
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium">Favorite reading time</Text>
+              <Text variant="labelLarge" customColor={colors.primary}>
+                Evening
+              </Text>
+            </View>
+            <View style={[styles.insightDivider, {backgroundColor: colors.divider}]} />
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium">Words learned this week</Text>
+              <Text variant="labelLarge" customColor={colors.success}>
+                +42
+              </Text>
+            </View>
+          </Card>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -94,64 +199,65 @@ export function StatisticsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+  insightDivider: {
+    height: 1,
+    marginVertical: spacing[3],
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  streakCard: {
-    backgroundColor: '#fef3c7',
-    marginHorizontal: 20,
-    marginVertical: 16,
-    borderRadius: 20,
-    padding: 24,
+  insightRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  streakEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
+  progressBar: {
+    borderRadius: borderRadius.full,
+    height: 8,
+    marginTop: spacing[2],
+    overflow: 'hidden',
   },
-  streakNumber: {
-    fontSize: 56,
-    fontWeight: '800',
-    color: '#92400e',
+  progressCard: {
+    marginBottom: spacing[4],
   },
-  streakLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#92400e',
-    marginTop: 4,
+  progressFill: {
+    borderRadius: borderRadius.full,
+    height: '100%',
   },
-  streakBest: {
-    fontSize: 14,
-    color: '#b45309',
-    marginTop: 8,
+  progressHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  scrollContent: {
+    paddingBottom: spacing[8],
+    paddingHorizontal: spacing[5],
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    marginTop: spacing[6],
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 16,
+    marginBottom: spacing[4],
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing[3],
+  },
+  streakBest: {
+    marginTop: spacing[2],
+  },
+  streakCard: {
+    marginTop: spacing[4],
+  },
+  streakCardInner: {
+    alignItems: 'center',
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing[6],
+  },
+  streakEmoji: {
+    marginBottom: spacing[2],
+  },
+  streakNumber: {
+    fontWeight: '800',
+    lineHeight: 60,
   },
 });

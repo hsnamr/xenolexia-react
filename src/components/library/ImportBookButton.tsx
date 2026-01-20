@@ -3,15 +3,24 @@
  */
 
 import React, {useCallback} from 'react';
+import {StyleSheet, TouchableOpacity, Alert} from 'react-native';
 
-import {Text, StyleSheet, TouchableOpacity, Alert} from 'react-native';
+import {useColors} from '@/theme';
+import {spacing, borderRadius} from '@/theme/tokens';
+import {Text, Button} from '@components/ui';
+import {PlusIcon} from '@components/common/TabBarIcon';
+
+// TODO: Uncomment when ready to implement
 // import DocumentPicker from 'react-native-document-picker';
+// import {useLibraryStore} from '@stores/libraryStore';
 
 interface ImportBookButtonProps {
   variant?: 'small' | 'large';
 }
 
 export function ImportBookButton({variant = 'small'}: ImportBookButtonProps): React.JSX.Element {
+  const colors = useColors();
+
   const handleImport = useCallback(async () => {
     try {
       // TODO: Implement actual file picking with DocumentPicker
@@ -40,42 +49,29 @@ export function ImportBookButton({variant = 'small'}: ImportBookButtonProps): Re
 
   if (variant === 'large') {
     return (
-      <TouchableOpacity style={styles.largeButton} onPress={handleImport} activeOpacity={0.8}>
-        <Text style={styles.largeButtonText}>Import Book</Text>
-      </TouchableOpacity>
+      <Button variant="primary" size="lg" onPress={handleImport}>
+        Import Book
+      </Button>
     );
   }
 
   return (
-    <TouchableOpacity style={styles.smallButton} onPress={handleImport} activeOpacity={0.8}>
-      <Text style={styles.smallButtonText}>+</Text>
+    <TouchableOpacity
+      style={[styles.smallButton, {backgroundColor: colors.primary}]}
+      onPress={handleImport}
+      activeOpacity={0.8}
+    >
+      <PlusIcon color={colors.onPrimary} size={20} />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  largeButton: {
-    backgroundColor: '#0ea5e9',
-    borderRadius: 30,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-  },
-  largeButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
   smallButton: {
     alignItems: 'center',
-    backgroundColor: '#0ea5e9',
-    borderRadius: 20,
+    borderRadius: borderRadius.full,
     height: 40,
     justifyContent: 'center',
     width: 40,
-  },
-  smallButtonText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '500',
   },
 });

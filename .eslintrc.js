@@ -34,12 +34,16 @@ module.exports = {
       version: 'detect',
     },
     'import/resolver': {
+      typescript: {
+        alwaysTryTypes: true,
+        project: './tsconfig.json',
+      },
       node: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
-      typescript: {
-        alwaysTryTypes: true,
-      },
+    },
+    'import/parsers': {
+      '@typescript-eslint/parser': ['.ts', '.tsx'],
     },
   },
   rules: {
@@ -97,12 +101,52 @@ module.exports = {
             position: 'before',
           },
           {
+            pattern: 'react-native-**',
+            group: 'external',
+            position: 'after',
+          },
+          {
+            pattern: '@react-navigation/**',
+            group: 'external',
+            position: 'after',
+          },
+          {
             pattern: '@/**',
             group: 'internal',
             position: 'before',
           },
+          {
+            pattern: '@components/**',
+            group: 'internal',
+            position: 'before',
+          },
+          {
+            pattern: '@screens/**',
+            group: 'internal',
+            position: 'before',
+          },
+          {
+            pattern: '@stores/**',
+            group: 'internal',
+            position: 'before',
+          },
+          {
+            pattern: '@services/**',
+            group: 'internal',
+            position: 'before',
+          },
+          {
+            pattern: '@types/**',
+            group: 'internal',
+            position: 'before',
+          },
+          {
+            pattern: '@navigation/**',
+            group: 'internal',
+            position: 'before',
+          },
         ],
-        pathGroupsExcludedImportTypes: ['react', 'react-native'],
+        pathGroupsExcludedImportTypes: ['react', 'react-native', 'type'],
         alphabetize: {
           order: 'asc',
           caseInsensitive: true,

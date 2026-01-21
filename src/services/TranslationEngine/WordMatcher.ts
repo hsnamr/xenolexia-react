@@ -1,64 +1,169 @@
 /**
  * Word Matcher - Matches source words to target language translations
+ *
+ * Uses WordDatabaseService for word lookups with support for:
+ * - Direct word matching
+ * - Variant matching (plurals, conjugations)
+ * - Case-insensitive matching
+ * - Proficiency level filtering
  */
 
-import type {Language, ProficiencyLevel, WordEntry, PartOfSpeech} from '@types/index';
+import type { Language, ProficiencyLevel, WordEntry } from '@/types';
+import { WordDatabaseService, wordDatabase } from './WordDatabase';
+import { ALL_WORDS_EN_EL } from '@/data/words_en_el';
+
+// ============================================================================
+// Word Matcher
+// ============================================================================
 
 export class WordMatcher {
   private sourceLanguage: Language;
   private targetLanguage: Language;
-  private wordList: Map<string, WordEntry> = new Map();
-  private variantsMap: Map<string, string> = new Map(); // variant -> canonical form
-  private isLoaded: boolean = false;
+  private database: WordDatabaseService;
+  private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
+
+  // In-memory fallback for when database is not available
+  private fallbackWordList: Map<string, WordEntry> = new Map();
+  private fallbackVariants: Map<string, string> = new Map();
 
   constructor(sourceLanguage: Language, targetLanguage: Language) {
     this.sourceLanguage = sourceLanguage;
     this.targetLanguage = targetLanguage;
+    this.database = wordDatabase;
   }
 
   /**
-   * Load word list for the language pair
+   * Initialize the word matcher (loads words into cache)
    */
-  async loadWordList(): Promise<void> {
-    if (this.isLoaded) return;
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+    if (this.initPromise) return this.initPromise;
 
+    this.initPromise = this.doInitialize();
+    await this.initPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
-      // TODO: Load from SQLite database or bundled assets
-      // For now, use placeholder data for English -> Greek
-      
-      if (this.sourceLanguage === 'en' && this.targetLanguage === 'el') {
-        this.initializeEnglishGreekWordList();
+      // Try to initialize from database
+      await this.database.initialize();
+      const count = await this.database.getWordCount(this.sourceLanguage, this.targetLanguage);
+
+      if (count === 0) {
+        // Database is empty, seed it with bundled data
+        console.log('Seeding word database with bundled data...');
+        await this.seedDatabase();
       }
 
-      this.isLoaded = true;
+      // Load into cache for fast lookups
+      await this.database.loadLanguagePair(this.sourceLanguage, this.targetLanguage);
+      this.isInitialized = true;
     } catch (error) {
-      console.error('Failed to load word list:', error);
-      throw error;
+      console.warn('Database not available, using fallback word list:', error);
+      this.initializeFallback();
+      this.isInitialized = true;
     }
+  }
+
+  /**
+   * Seed the database with bundled word data
+   */
+  private async seedDatabase(): Promise<void> {
+    if (this.sourceLanguage === 'en' && this.targetLanguage === 'el') {
+      const result = await this.database.bulkImport(
+        ALL_WORDS_EN_EL,
+        this.sourceLanguage,
+        this.targetLanguage
+      );
+      console.log(`Imported ${result.imported} words, skipped ${result.skipped}`);
+      if (result.errors.length > 0) {
+        console.warn('Import errors:', result.errors.slice(0, 5));
+      }
+    }
+  }
+
+  /**
+   * Initialize fallback in-memory word list
+   */
+  private initializeFallback(): void {
+    if (this.sourceLanguage === 'en' && this.targetLanguage === 'el') {
+      for (const word of ALL_WORDS_EN_EL) {
+        const entry: WordEntry = {
+          id: `${word.source}_${word.rank}`,
+          sourceWord: word.source,
+          targetWord: word.target,
+          sourceLanguage: 'en',
+          targetLanguage: 'el',
+          proficiencyLevel: this.getRankLevel(word.rank),
+          frequencyRank: word.rank,
+          partOfSpeech: word.pos,
+          variants: word.variants || [],
+          pronunciation: word.pronunciation,
+        };
+
+        this.fallbackWordList.set(word.source.toLowerCase(), entry);
+
+        // Add variants
+        if (word.variants) {
+          for (const variant of word.variants) {
+            this.fallbackVariants.set(variant.toLowerCase(), word.source.toLowerCase());
+          }
+        }
+      }
+    }
+  }
+
+  private getRankLevel(rank: number): ProficiencyLevel {
+    if (rank <= 500) return 'beginner';
+    if (rank <= 2000) return 'intermediate';
+    return 'advanced';
   }
 
   /**
    * Find a matching translation for a word
    */
   async findMatch(word: string, maxLevel: ProficiencyLevel): Promise<WordEntry | null> {
-    if (!this.isLoaded) {
-      await this.loadWordList();
-    }
+    await this.initialize();
 
     const normalized = word.toLowerCase();
 
-    // Check direct match
-    let entry = this.wordList.get(normalized);
+    // Try database first
+    try {
+      const entry = await this.database.lookupWord(
+        normalized,
+        this.sourceLanguage,
+        this.targetLanguage,
+        { includeVariants: true }
+      );
 
-    // Check variants (plurals, conjugations)
+      if (entry && this.isWithinLevel(entry.proficiencyLevel, maxLevel)) {
+        return entry;
+      }
+    } catch (error) {
+      // Fall through to fallback
+    }
+
+    // Use fallback if database lookup failed
+    return this.findMatchFallback(normalized, maxLevel);
+  }
+
+  /**
+   * Fallback word matching using in-memory list
+   */
+  private findMatchFallback(normalized: string, maxLevel: ProficiencyLevel): WordEntry | null {
+    // Direct match
+    let entry = this.fallbackWordList.get(normalized);
+
+    // Variant match
     if (!entry) {
-      const canonical = this.variantsMap.get(normalized);
+      const canonical = this.fallbackVariants.get(normalized);
       if (canonical) {
-        entry = this.wordList.get(canonical);
+        entry = this.fallbackWordList.get(canonical);
       }
     }
 
-    // Check if word is within proficiency level
+    // Check proficiency level
     if (entry && this.isWithinLevel(entry.proficiencyLevel, maxLevel)) {
       return entry;
     }
@@ -67,152 +172,161 @@ export class WordMatcher {
   }
 
   /**
-   * Get all words at a specific proficiency level
+   * Find matches for multiple words efficiently
    */
-  getWordsByLevel(level: ProficiencyLevel): WordEntry[] {
-    const words: WordEntry[] = [];
-    this.wordList.forEach(entry => {
-      if (entry.proficiencyLevel === level) {
-        words.push(entry);
-      }
-    });
-    return words;
+  async findMatches(
+    words: string[],
+    maxLevel: ProficiencyLevel
+  ): Promise<Map<string, WordEntry | null>> {
+    await this.initialize();
+
+    const results = new Map<string, WordEntry | null>();
+
+    for (const word of words) {
+      const match = await this.findMatch(word, maxLevel);
+      results.set(word, match);
+    }
+
+    return results;
   }
 
-  // Private methods
+  /**
+   * Get all words at a specific proficiency level
+   */
+  async getWordsByLevel(level: ProficiencyLevel): Promise<WordEntry[]> {
+    await this.initialize();
 
+    try {
+      return await this.database.getWordsByProficiency(
+        this.sourceLanguage,
+        this.targetLanguage,
+        level
+      );
+    } catch (error) {
+      // Use fallback
+      const words: WordEntry[] = [];
+      this.fallbackWordList.forEach((entry) => {
+        if (entry.proficiencyLevel === level) {
+          words.push(entry);
+        }
+      });
+      return words;
+    }
+  }
+
+  /**
+   * Get random words for practice/review
+   */
+  async getRandomWords(level: ProficiencyLevel, count: number): Promise<WordEntry[]> {
+    await this.initialize();
+
+    try {
+      return await this.database.getRandomWords(
+        this.sourceLanguage,
+        this.targetLanguage,
+        level,
+        count
+      );
+    } catch (error) {
+      // Fallback: get random from in-memory list
+      const levelWords = await this.getWordsByLevel(level);
+      const shuffled = [...levelWords].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, count);
+    }
+  }
+
+  /**
+   * Search for words by prefix
+   */
+  async searchWords(query: string, limit: number = 20): Promise<WordEntry[]> {
+    await this.initialize();
+
+    try {
+      return await this.database.searchWords(
+        query,
+        this.sourceLanguage,
+        this.targetLanguage,
+        limit
+      );
+    } catch (error) {
+      // Fallback search
+      const results: WordEntry[] = [];
+      const lowerQuery = query.toLowerCase();
+      
+      this.fallbackWordList.forEach((entry) => {
+        if (
+          entry.sourceWord.toLowerCase().startsWith(lowerQuery) ||
+          entry.targetWord.toLowerCase().startsWith(lowerQuery)
+        ) {
+          results.push(entry);
+        }
+      });
+
+      return results.slice(0, limit);
+    }
+  }
+
+  /**
+   * Get statistics about the word database
+   */
+  async getStats(): Promise<{
+    total: number;
+    beginner: number;
+    intermediate: number;
+    advanced: number;
+  }> {
+    await this.initialize();
+
+    try {
+      const stats = await this.database.getStats(this.sourceLanguage, this.targetLanguage);
+      return {
+        total: stats.totalWords,
+        ...stats.byProficiency,
+      };
+    } catch (error) {
+      // Fallback stats
+      let beginner = 0;
+      let intermediate = 0;
+      let advanced = 0;
+
+      this.fallbackWordList.forEach((entry) => {
+        switch (entry.proficiencyLevel) {
+          case 'beginner':
+            beginner++;
+            break;
+          case 'intermediate':
+            intermediate++;
+            break;
+          case 'advanced':
+            advanced++;
+            break;
+        }
+      });
+
+      return {
+        total: this.fallbackWordList.size,
+        beginner,
+        intermediate,
+        advanced,
+      };
+    }
+  }
+
+  /**
+   * Check if a word's level is within the max allowed level
+   */
   private isWithinLevel(wordLevel: ProficiencyLevel, maxLevel: ProficiencyLevel): boolean {
     const levels: ProficiencyLevel[] = ['beginner', 'intermediate', 'advanced'];
     return levels.indexOf(wordLevel) <= levels.indexOf(maxLevel);
   }
 
-  private initializeEnglishGreekWordList(): void {
-    // Beginner words (A1-A2) - Most common ~500 words
-    const beginnerWords: Array<{
-      source: string;
-      target: string;
-      pos: PartOfSpeech;
-      variants?: string[];
-    }> = [
-      // Common nouns
-      {source: 'house', target: 'σπίτι', pos: 'noun', variants: ['houses']},
-      {source: 'water', target: 'νερό', pos: 'noun'},
-      {source: 'book', target: 'βιβλίο', pos: 'noun', variants: ['books']},
-      {source: 'dog', target: 'σκύλος', pos: 'noun', variants: ['dogs']},
-      {source: 'cat', target: 'γάτα', pos: 'noun', variants: ['cats']},
-      {source: 'food', target: 'φαγητό', pos: 'noun'},
-      {source: 'friend', target: 'φίλος', pos: 'noun', variants: ['friends']},
-      {source: 'family', target: 'οικογένεια', pos: 'noun', variants: ['families']},
-      {source: 'child', target: 'παιδί', pos: 'noun', variants: ['children']},
-      {source: 'mother', target: 'μητέρα', pos: 'noun', variants: ['mothers']},
-      {source: 'father', target: 'πατέρας', pos: 'noun', variants: ['fathers']},
-      {source: 'day', target: 'ημέρα', pos: 'noun', variants: ['days']},
-      {source: 'night', target: 'νύχτα', pos: 'noun', variants: ['nights']},
-      {source: 'time', target: 'χρόνος', pos: 'noun'},
-      {source: 'year', target: 'χρόνος', pos: 'noun', variants: ['years']},
-      {source: 'man', target: 'άνδρας', pos: 'noun', variants: ['men']},
-      {source: 'woman', target: 'γυναίκα', pos: 'noun', variants: ['women']},
-      {source: 'name', target: 'όνομα', pos: 'noun', variants: ['names']},
-      {source: 'world', target: 'κόσμος', pos: 'noun'},
-      {source: 'city', target: 'πόλη', pos: 'noun', variants: ['cities']},
-      
-      // Common verbs
-      {source: 'go', target: 'πηγαίνω', pos: 'verb', variants: ['goes', 'going', 'went', 'gone']},
-      {source: 'come', target: 'έρχομαι', pos: 'verb', variants: ['comes', 'coming', 'came']},
-      {source: 'see', target: 'βλέπω', pos: 'verb', variants: ['sees', 'seeing', 'saw', 'seen']},
-      {source: 'know', target: 'ξέρω', pos: 'verb', variants: ['knows', 'knowing', 'knew', 'known']},
-      {source: 'want', target: 'θέλω', pos: 'verb', variants: ['wants', 'wanting', 'wanted']},
-      {source: 'love', target: 'αγαπώ', pos: 'verb', variants: ['loves', 'loving', 'loved']},
-      {source: 'eat', target: 'τρώω', pos: 'verb', variants: ['eats', 'eating', 'ate', 'eaten']},
-      {source: 'drink', target: 'πίνω', pos: 'verb', variants: ['drinks', 'drinking', 'drank', 'drunk']},
-      {source: 'sleep', target: 'κοιμάμαι', pos: 'verb', variants: ['sleeps', 'sleeping', 'slept']},
-      {source: 'walk', target: 'περπατώ', pos: 'verb', variants: ['walks', 'walking', 'walked']},
-      
-      // Common adjectives
-      {source: 'good', target: 'καλός', pos: 'adjective'},
-      {source: 'bad', target: 'κακός', pos: 'adjective'},
-      {source: 'big', target: 'μεγάλος', pos: 'adjective'},
-      {source: 'small', target: 'μικρός', pos: 'adjective'},
-      {source: 'new', target: 'νέος', pos: 'adjective'},
-      {source: 'old', target: 'παλιός', pos: 'adjective'},
-      {source: 'beautiful', target: 'όμορφος', pos: 'adjective'},
-      {source: 'happy', target: 'χαρούμενος', pos: 'adjective'},
-      {source: 'sad', target: 'λυπημένος', pos: 'adjective'},
-      {source: 'hot', target: 'ζεστός', pos: 'adjective'},
-      {source: 'cold', target: 'κρύος', pos: 'adjective'},
-    ];
-
-    // Intermediate words (B1-B2) - Words 501-2000
-    const intermediateWords: Array<{
-      source: string;
-      target: string;
-      pos: PartOfSpeech;
-      variants?: string[];
-    }> = [
-      {source: 'government', target: 'κυβέρνηση', pos: 'noun'},
-      {source: 'problem', target: 'πρόβλημα', pos: 'noun', variants: ['problems']},
-      {source: 'decision', target: 'απόφαση', pos: 'noun', variants: ['decisions']},
-      {source: 'experience', target: 'εμπειρία', pos: 'noun', variants: ['experiences']},
-      {source: 'opportunity', target: 'ευκαιρία', pos: 'noun', variants: ['opportunities']},
-      {source: 'relationship', target: 'σχέση', pos: 'noun', variants: ['relationships']},
-      {source: 'situation', target: 'κατάσταση', pos: 'noun', variants: ['situations']},
-      {source: 'believe', target: 'πιστεύω', pos: 'verb', variants: ['believes', 'believed', 'believing']},
-      {source: 'remember', target: 'θυμάμαι', pos: 'verb', variants: ['remembers', 'remembered']},
-      {source: 'understand', target: 'καταλαβαίνω', pos: 'verb', variants: ['understands', 'understood']},
-      {source: 'important', target: 'σημαντικός', pos: 'adjective'},
-      {source: 'different', target: 'διαφορετικός', pos: 'adjective'},
-      {source: 'possible', target: 'πιθανός', pos: 'adjective'},
-      {source: 'necessary', target: 'απαραίτητος', pos: 'adjective'},
-    ];
-
-    // Advanced words (C1-C2) - Words 2001+
-    const advancedWords: Array<{
-      source: string;
-      target: string;
-      pos: PartOfSpeech;
-      variants?: string[];
-    }> = [
-      {source: 'phenomenon', target: 'φαινόμενο', pos: 'noun', variants: ['phenomena']},
-      {source: 'hypothesis', target: 'υπόθεση', pos: 'noun', variants: ['hypotheses']},
-      {source: 'consequence', target: 'συνέπεια', pos: 'noun', variants: ['consequences']},
-      {source: 'comprehend', target: 'κατανοώ', pos: 'verb', variants: ['comprehends', 'comprehended']},
-      {source: 'elaborate', target: 'επεξεργάζομαι', pos: 'verb', variants: ['elaborates', 'elaborated']},
-      {source: 'sophisticated', target: 'εκλεπτυσμένος', pos: 'adjective'},
-      {source: 'inevitable', target: 'αναπόφευκτος', pos: 'adjective'},
-      {source: 'ambiguous', target: 'διφορούμενος', pos: 'adjective'},
-    ];
-
-    // Add all words to the map
-    let id = 1;
-    const addWords = (
-      words: typeof beginnerWords,
-      level: ProficiencyLevel,
-      startRank: number,
-    ) => {
-      words.forEach((word, index) => {
-        const entry: WordEntry = {
-          id: (id++).toString(),
-          sourceWord: word.source,
-          targetWord: word.target,
-          sourceLanguage: 'en',
-          targetLanguage: 'el',
-          proficiencyLevel: level,
-          frequencyRank: startRank + index,
-          partOfSpeech: word.pos,
-          variants: word.variants || [],
-        };
-
-        this.wordList.set(word.source, entry);
-
-        // Add variants mapping
-        word.variants?.forEach(variant => {
-          this.variantsMap.set(variant.toLowerCase(), word.source);
-        });
-      });
+  /**
+   * Get the current language pair
+   */
+  getLanguagePair(): { source: Language; target: Language } {
+    return {
+      source: this.sourceLanguage,
+      target: this.targetLanguage,
     };
-
-    addWords(beginnerWords, 'beginner', 1);
-    addWords(intermediateWords, 'intermediate', 501);
-    addWords(advancedWords, 'advanced', 2001);
   }
 }

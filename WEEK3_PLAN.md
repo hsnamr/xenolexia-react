@@ -72,35 +72,38 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 
 ---
 
-## Day 3: Translation Engine - Word Database 🗄️
+## Day 3: Translation Engine - Word Database 🗄️ ✅
 
 **Goal:** Set up word database with frequency-ranked translations.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Create word_list table schema with frequency ranks
-- [ ] Import sample frequency data (English → Greek as test)
-- [ ] Map words to proficiency levels:
+- [x] Create word_list table schema with frequency ranks
+- [x] Import sample frequency data (English → Greek as test)
+- [x] Map words to proficiency levels:
   - Beginner (A1-A2): Top 500 most common
   - Intermediate (B1-B2): Words 501-2000
   - Advanced (C1-C2): Words 2001-5000+
-- [ ] Create WordDatabaseService for lookups
-- [ ] Implement word matching with variants (plurals, etc.)
-- [ ] Handle case sensitivity
+- [x] Create WordDatabaseService for lookups
+- [x] Implement word matching with variants (plurals, etc.)
+- [x] Handle case sensitivity
 
 ### Deliverables
 
-- SQLite table with frequency-ranked word translations
-- Service to query words by proficiency level
-- Word matching that handles basic variants
-- Sample dataset for English → Greek
+- ✅ WordDatabaseService with SQLite integration and in-memory cache
+- ✅ Bulk import functionality with transaction support
+- ✅ Word lookup with variant matching (plurals, conjugations)
+- ✅ 235+ English-Greek words across all proficiency levels
+- ✅ Updated WordMatcher using database with fallback
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/services/TranslationEngine/WordDatabase.ts` - Word lookup service
-- `src/services/StorageService/DatabaseSchema.ts` - Add word_list table
-- `src/data/words_en_el.json` - Sample word data (English-Greek)
-- `src/services/TranslationEngine/types.ts` - Update with database types
+- `src/services/TranslationEngine/WordDatabase.ts` - Full database service
+- `src/services/TranslationEngine/WordMatcher.ts` - Updated to use database
+- `src/services/TranslationEngine/index.ts` - Added new exports
+- `src/data/words_en_el.ts` - Comprehensive word list with pronunciations
+- `src/data/index.ts` - Data exports
 
 ---
 
@@ -174,7 +177,7 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 | ----- | ----------- | ------ | ------------------------------------------------------ |
 | Day 1 | ✅ Complete | Jan 21 | ChapterContentService, EPUBRenderer, readerStore       |
 | Day 2 | ✅ Complete | Jan 21 | Interactive slider, ReaderStyleService, settings modal |
-| Day 3 | ⏳ Pending  |        |                                                        |
+| Day 3 | ✅ Complete | Jan 21 | WordDatabase, 235+ EN-EL words, variant matching       |
 | Day 4 | ⏳ Pending  |        |                                                        |
 | Day 5 | ⏳ Pending  |        |                                                        |
 

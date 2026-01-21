@@ -16,17 +16,32 @@ const defaultStats: ReadingStats = {
   wordsSavedToday: 0,
 };
 
+interface ReviewSessionData {
+  cardsReviewed: number;
+  correctCount: number;
+  timeSpentSeconds: number;
+}
+
 interface StatisticsState {
   stats: ReadingStats;
   currentSession: ReadingSession | null;
   sessions: ReadingSession[];
   isLoading: boolean;
 
+  // Review stats
+  reviewStats: {
+    totalReviews: number;
+    totalCorrect: number;
+    totalTimeSpent: number;
+    reviewsToday: number;
+  };
+
   // Actions
   startSession: (bookId: string) => void;
   endSession: () => void;
   recordWordRevealed: () => void;
   recordWordSaved: () => void;
+  recordReviewSession: (data: ReviewSessionData) => void;
   updateStats: (updates: Partial<ReadingStats>) => void;
   loadStats: () => Promise<void>;
   refreshStats: () => Promise<void>;
@@ -38,6 +53,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   currentSession: null,
   sessions: [],
   isLoading: false,
+  reviewStats: {
+    totalReviews: 0,
+    totalCorrect: 0,
+    totalTimeSpent: 0,
+    reviewsToday: 0,
+  },
 
   startSession: (bookId: string) => {
     const session: ReadingSession = {
@@ -109,6 +130,18 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
         ? {...state.currentSession, wordsSaved: state.currentSession.wordsSaved + 1}
         : null,
     }));
+  },
+
+  recordReviewSession: (data: ReviewSessionData) => {
+    set(state => ({
+      reviewStats: {
+        totalReviews: state.reviewStats.totalReviews + data.cardsReviewed,
+        totalCorrect: state.reviewStats.totalCorrect + data.correctCount,
+        totalTimeSpent: state.reviewStats.totalTimeSpent + data.timeSpentSeconds,
+        reviewsToday: state.reviewStats.reviewsToday + data.cardsReviewed,
+      },
+    }));
+    // TODO: Persist to database
   },
 
   updateStats: (updates: Partial<ReadingStats>) => {

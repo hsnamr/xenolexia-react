@@ -23,6 +23,7 @@ import {ProfileScreen} from '@screens/Profile/ProfileScreen';
 import {ReaderScreen} from '@screens/Reader/ReaderScreen';
 import {StatisticsScreen} from '@screens/Statistics/StatisticsScreen';
 import {VocabularyScreen} from '@screens/Vocabulary/VocabularyScreen';
+import {ReviewScreen} from '@screens/Vocabulary/ReviewScreen';
 
 import {useTheme} from '@/theme';
 import {linkingConfig} from './linking';
@@ -275,13 +276,14 @@ export function AppNavigator(): React.JSX.Element {
           }}
         />
 
-        {/* Vocabulary Quiz */}
+        {/* Vocabulary Quiz / Review */}
         <Stack.Screen
           name="VocabularyQuiz"
-          component={() => <PlaceholderScreen title="Vocabulary Quiz" />}
+          component={ReviewScreen}
           options={{
             animation: 'slide_from_bottom',
-            presentation: 'modal',
+            presentation: 'fullScreenModal',
+            gestureEnabled: false,
           }}
         />
 

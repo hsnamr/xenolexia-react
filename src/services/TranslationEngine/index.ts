@@ -9,7 +9,24 @@
  */
 
 // Main engine
-export { TranslationEngine } from './TranslationEngine';
+export {
+  TranslationEngine,
+  createTranslationEngine,
+  createDefaultEngine,
+} from './TranslationEngine';
+
+// Tokenizer
+export { Tokenizer, tokenizer } from './Tokenizer';
+export type { Token, TextSegment, TokenizerOptions } from './Tokenizer';
+
+// Word Replacer
+export { WordReplacer, createWordReplacer } from './WordReplacer';
+export type {
+  ReplacementCandidate,
+  ReplacementResult,
+  ReplacementStats,
+  ReplacerOptions,
+} from './WordReplacer';
 
 // Word matching (legacy, uses bundled data)
 export { WordMatcher } from './WordMatcher';

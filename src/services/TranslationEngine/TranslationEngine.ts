@@ -1,235 +1,324 @@
 /**
- * Translation Engine - Processes text and replaces words with target language
+ * Translation Engine - Core service for processing text and replacing words
+ *
+ * Orchestrates the translation process:
+ * 1. Tokenizes HTML content while preserving structure
+ * 2. Looks up translations using DynamicWordDatabase
+ * 3. Replaces words based on proficiency and density settings
+ * 4. Returns processed content with foreign word markers
+ *
+ * Supports any language pair through the DynamicWordDatabase.
  */
 
-import type {ForeignWordData, WordEntry} from '@types/index';
-import type {TranslationOptions, ProcessedText, ProcessingStats} from './types';
-import {WordMatcher} from './WordMatcher';
+import type { Language, ProficiencyLevel, ForeignWordData, WordEntry } from '@/types';
+import type { TranslationOptions, ProcessedText, ProcessingStats } from './types';
+import { Tokenizer, Token } from './Tokenizer';
+import { WordReplacer, ReplacerOptions } from './WordReplacer';
+import { DynamicWordDatabase, dynamicWordDatabase } from './DynamicWordDatabase';
+import { WordMatcher } from './WordMatcher';
+
+// ============================================================================
+// Translation Engine
+// ============================================================================
 
 export class TranslationEngine {
+  private tokenizer: Tokenizer;
+  private replacer: WordReplacer;
+  private database: DynamicWordDatabase;
   private wordMatcher: WordMatcher;
   private options: TranslationOptions;
+  private initialized: boolean = false;
 
   constructor(options: TranslationOptions) {
     this.options = options;
+
+    // Initialize tokenizer with context-aware settings
+    this.tokenizer = new Tokenizer({
+      skipQuotes: true,
+      skipNames: true,
+      skipCode: true,
+      minWordLength: 2,
+      maxWordLength: 25,
+      skipWords: new Set(options.excludeWords || []),
+    });
+
+    // Initialize replacer with density and proficiency settings
+    this.replacer = new WordReplacer({
+      density: options.density,
+      maxProficiency: options.proficiencyLevel,
+      preferredPartsOfSpeech: options.preferredPartOfSpeech,
+      excludeWords: new Set(options.excludeWords || []),
+      minWordSpacing: 3,
+      selectionStrategy: 'distributed',
+    });
+
+    // Use dynamic database for multi-language support
+    this.database = dynamicWordDatabase;
+
+    // Keep WordMatcher for fallback/bundled data
     this.wordMatcher = new WordMatcher(options.sourceLanguage, options.targetLanguage);
   }
 
   /**
-   * Process text content and replace eligible words
+   * Initialize the translation engine
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    await this.database.initialize();
+    await this.wordMatcher.initialize();
+    this.initialized = true;
+  }
+
+  /**
+   * Process text content and replace eligible words with foreign equivalents
    */
   async processContent(content: string): Promise<ProcessedText> {
+    await this.initialize();
+
     const startTime = Date.now();
-    const foreignWords: ForeignWordData[] = [];
 
-    // Parse HTML and extract text nodes
-    const textSegments = this.extractTextSegments(content);
+    // Step 1: Tokenize the HTML content
+    const tokens = this.tokenizer.tokenize(content);
 
-    let totalWords = 0;
-    let eligibleWords = 0;
-    let replacedWords = 0;
+    // Step 2: Get unique words that need translation
+    const uniqueWords = Tokenizer.getUniqueWords(tokens);
 
-    // Process each text segment
-    let processedContent = content;
-    let offset = 0;
+    // Step 3: Look up translations for all unique words
+    const wordEntries = await this.lookupWords(uniqueWords);
 
-    for (const segment of textSegments) {
-      const words = this.tokenize(segment.text);
-      totalWords += words.length;
+    // Step 4: Replace words in content
+    const result = this.replacer.replace(content, tokens, wordEntries);
 
-      // Find eligible words for this segment
-      const matches = await this.findMatches(words);
-      eligibleWords += matches.filter(m => m.entry !== null).length;
-
-      // Select words to replace based on density
-      const toReplace = this.selectWordsToReplace(matches);
-      replacedWords += toReplace.length;
-
-      // Replace words in content
-      for (const match of toReplace.reverse()) {
-        const originalText = segment.text.substring(match.startIndex, match.endIndex);
-        const foreignWord = match.entry!.targetWord;
-
-        // Preserve original case
-        const casePreservedWord = this.preserveCase(originalText, foreignWord);
-
-        // Create foreign word marker
-        const marker = this.createForeignWordMarker(
-          casePreservedWord,
-          match.entry!,
-          match.startIndex + segment.position + offset,
-        );
-
-        // Store foreign word data
-        foreignWords.push({
-          originalWord: match.originalWord,
-          foreignWord: casePreservedWord,
-          startIndex: match.startIndex + segment.position + offset,
-          endIndex: match.endIndex + segment.position + offset,
-          wordEntry: match.entry!,
-        });
-
-        // Replace in content
-        const before = processedContent.substring(0, segment.position + match.startIndex + offset);
-        const after = processedContent.substring(segment.position + match.endIndex + offset);
-        processedContent = before + marker + after;
-
-        // Update offset for next replacement
-        offset += marker.length - originalText.length;
-      }
-    }
-
+    // Build processing stats
     const stats: ProcessingStats = {
-      totalWords,
-      eligibleWords,
-      replacedWords,
+      totalWords: result.stats.totalTokens,
+      eligibleWords: result.stats.eligibleTokens,
+      replacedWords: result.stats.replacedTokens,
       processingTime: Date.now() - startTime,
     };
 
     return {
-      content: processedContent,
-      foreignWords,
+      content: result.html,
+      foreignWords: result.foreignWords,
       stats,
     };
+  }
+
+  /**
+   * Process content with custom options (doesn't modify engine state)
+   */
+  async processContentWithOptions(
+    content: string,
+    overrides: Partial<TranslationOptions>
+  ): Promise<ProcessedText> {
+    const mergedOptions = { ...this.options, ...overrides };
+
+    // Create temporary replacer with overridden options
+    const tempReplacer = new WordReplacer({
+      density: mergedOptions.density,
+      maxProficiency: mergedOptions.proficiencyLevel,
+      preferredPartsOfSpeech: mergedOptions.preferredPartOfSpeech,
+      excludeWords: new Set(mergedOptions.excludeWords || []),
+    });
+
+    await this.initialize();
+
+    const startTime = Date.now();
+    const tokens = this.tokenizer.tokenize(content);
+    const uniqueWords = Tokenizer.getUniqueWords(tokens);
+    const wordEntries = await this.lookupWords(uniqueWords);
+    const result = tempReplacer.replace(content, tokens, wordEntries);
+
+    return {
+      content: result.html,
+      foreignWords: result.foreignWords,
+      stats: {
+        totalWords: result.stats.totalTokens,
+        eligibleWords: result.stats.eligibleTokens,
+        replacedWords: result.stats.replacedTokens,
+        processingTime: Date.now() - startTime,
+      },
+    };
+  }
+
+  /**
+   * Look up translations for a list of words
+   */
+  private async lookupWords(words: string[]): Promise<Map<string, WordEntry | null>> {
+    const results = new Map<string, WordEntry | null>();
+
+    // Try dynamic database first (supports any language pair)
+    const lookupResults = await this.database.lookupWords(
+      words,
+      this.options.sourceLanguage,
+      this.options.targetLanguage
+    );
+
+    for (const [word, result] of lookupResults) {
+      if (result.entry) {
+        results.set(word, result.entry);
+      } else {
+        // Fallback to WordMatcher for bundled data
+        const fallbackEntry = await this.wordMatcher.findMatch(
+          word,
+          this.options.proficiencyLevel
+        );
+        results.set(word, fallbackEntry);
+      }
+    }
+
+    return results;
   }
 
   /**
    * Update translation options
    */
   updateOptions(options: Partial<TranslationOptions>): void {
-    this.options = {...this.options, ...options};
+    this.options = { ...this.options, ...options };
+
+    // Update tokenizer if exclude words changed
+    if (options.excludeWords) {
+      this.tokenizer.updateOptions({
+        skipWords: new Set(options.excludeWords),
+      });
+    }
+
+    // Update replacer
+    const replacerUpdates: Partial<ReplacerOptions> = {};
+    if (options.density !== undefined) {
+      replacerUpdates.density = options.density;
+    }
+    if (options.proficiencyLevel !== undefined) {
+      replacerUpdates.maxProficiency = options.proficiencyLevel;
+    }
+    if (options.preferredPartOfSpeech !== undefined) {
+      replacerUpdates.preferredPartsOfSpeech = options.preferredPartOfSpeech;
+    }
+    if (options.excludeWords !== undefined) {
+      replacerUpdates.excludeWords = new Set(options.excludeWords);
+    }
+    this.replacer.updateOptions(replacerUpdates);
+
+    // Reinitialize word matcher if language changed
     if (options.sourceLanguage || options.targetLanguage) {
       this.wordMatcher = new WordMatcher(
         options.sourceLanguage || this.options.sourceLanguage,
-        options.targetLanguage || this.options.targetLanguage,
+        options.targetLanguage || this.options.targetLanguage
       );
+      this.initialized = false; // Force re-initialization
     }
   }
 
-  // Private methods
-
-  private extractTextSegments(html: string): Array<{text: string; position: number}> {
-    // Simple extraction - in production, use proper HTML parser
-    const segments: Array<{text: string; position: number}> = [];
-    const tagRegex = /<[^>]*>/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = tagRegex.exec(html)) !== null) {
-      if (match.index > lastIndex) {
-        segments.push({
-          text: html.substring(lastIndex, match.index),
-          position: lastIndex,
-        });
-      }
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < html.length) {
-      segments.push({
-        text: html.substring(lastIndex),
-        position: lastIndex,
-      });
-    }
-
-    return segments;
+  /**
+   * Get current options
+   */
+  getOptions(): TranslationOptions {
+    return { ...this.options };
   }
 
-  private tokenize(text: string): Array<{word: string; start: number; end: number}> {
-    const tokens: Array<{word: string; start: number; end: number}> = [];
-    const wordRegex = /\b[a-zA-Z]+(?:'[a-zA-Z]+)?\b/g;
-    let match;
+  /**
+   * Get translation statistics for the current language pair
+   */
+  async getStats(): Promise<{
+    cachedWords: number;
+    availableWords: number;
+    byProficiency: { beginner: number; intermediate: number; advanced: number };
+  }> {
+    await this.initialize();
 
-    while ((match = wordRegex.exec(text)) !== null) {
-      tokens.push({
-        word: match[0],
-        start: match.index,
-        end: match.index + match[0].length,
-      });
-    }
+    const dbStats = await this.database.getStats();
+    const matcherStats = await this.wordMatcher.getStats();
 
-    return tokens;
+    return {
+      cachedWords: dbStats.totalCachedWords,
+      availableWords: matcherStats.total,
+      byProficiency: {
+        beginner: matcherStats.beginner,
+        intermediate: matcherStats.intermediate,
+        advanced: matcherStats.advanced,
+      },
+    };
   }
 
-  private async findMatches(
-    words: Array<{word: string; start: number; end: number}>,
-  ): Promise<Array<{
-    originalWord: string;
-    normalizedWord: string;
-    startIndex: number;
-    endIndex: number;
-    entry: WordEntry | null;
-  }>> {
-    return Promise.all(
-      words.map(async ({word, start, end}) => {
-        const entry = await this.wordMatcher.findMatch(
-          word,
-          this.options.proficiencyLevel,
-        );
-        return {
-          originalWord: word,
-          normalizedWord: word.toLowerCase(),
-          startIndex: start,
-          endIndex: end,
-          entry,
-        };
-      }),
+  /**
+   * Pre-cache common words for better offline performance
+   */
+  async preCacheWords(count: number = 500): Promise<{ cached: number; failed: number }> {
+    await this.initialize();
+
+    return this.database.preCacheCommonWords(
+      this.options.sourceLanguage,
+      this.options.targetLanguage,
+      count
     );
   }
 
-  private selectWordsToReplace(
-    matches: Array<{
-      originalWord: string;
-      entry: WordEntry | null;
-      startIndex: number;
-      endIndex: number;
-    }>,
-  ): Array<{
-    originalWord: string;
-    entry: WordEntry;
-    startIndex: number;
-    endIndex: number;
-  }> {
-    // Filter to eligible words only
-    const eligible = matches.filter(
-      m =>
-        m.entry !== null &&
-        !this.options.excludeWords?.includes(m.originalWord.toLowerCase()),
-    ) as Array<{
-      originalWord: string;
-      entry: WordEntry;
-      startIndex: number;
-      endIndex: number;
-    }>;
-
-    // Calculate how many to replace based on density
-    const targetCount = Math.floor(eligible.length * this.options.density);
-
-    // Shuffle and select
-    const shuffled = this.shuffle([...eligible]);
-    return shuffled.slice(0, targetCount);
+  /**
+   * Check if the current language pair is supported
+   */
+  async isLanguagePairSupported(): Promise<boolean> {
+    return this.database.isLanguagePairSupported(
+      this.options.sourceLanguage,
+      this.options.targetLanguage
+    );
   }
 
-  private preserveCase(original: string, replacement: string): string {
-    if (original === original.toUpperCase()) {
-      return replacement.toUpperCase();
-    }
-    if (original[0] === original[0].toUpperCase()) {
-      return replacement[0].toUpperCase() + replacement.slice(1);
-    }
-    return replacement;
+  /**
+   * Get a single word translation (useful for popup details)
+   */
+  async translateWord(word: string): Promise<WordEntry | null> {
+    await this.initialize();
+
+    const result = await this.database.lookupWord(
+      word,
+      this.options.sourceLanguage,
+      this.options.targetLanguage
+    );
+
+    return result.entry;
   }
 
-  private createForeignWordMarker(word: string, entry: WordEntry, position: number): string {
-    // Create a span with data attributes for tap handling
-    return `<span class="foreign-word" data-original="${entry.sourceWord}" data-position="${position}">${word}</span>`;
-  }
+  /**
+   * Get words for vocabulary practice
+   */
+  async getWordsForPractice(
+    level: ProficiencyLevel,
+    count: number
+  ): Promise<WordEntry[]> {
+    await this.initialize();
 
-  private shuffle<T>(array: T[]): T[] {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+    return this.database.getWordsByProficiency(
+      this.options.sourceLanguage,
+      this.options.targetLanguage,
+      level,
+      count
+    );
   }
+}
+
+// ============================================================================
+// Factory Functions
+// ============================================================================
+
+/**
+ * Create a new TranslationEngine instance
+ */
+export function createTranslationEngine(options: TranslationOptions): TranslationEngine {
+  return new TranslationEngine(options);
+}
+
+/**
+ * Create a TranslationEngine with default options for a language pair
+ */
+export function createDefaultEngine(
+  sourceLanguage: Language,
+  targetLanguage: Language
+): TranslationEngine {
+  return new TranslationEngine({
+    sourceLanguage,
+    targetLanguage,
+    proficiencyLevel: 'beginner',
+    density: 0.15,
+  });
 }

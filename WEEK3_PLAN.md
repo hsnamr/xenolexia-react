@@ -139,35 +139,39 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 
 ---
 
-## Day 4: Translation Engine - Word Replacement ⭐
+## Day 4: Translation Engine - Word Replacement ⭐ ✅
 
 **Goal:** Implement the core word replacement algorithm.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Create text tokenizer that preserves HTML structure
-- [ ] Implement word identification in text
-- [ ] Apply replacement based on:
+- [x] Create text tokenizer that preserves HTML structure
+- [x] Implement word identification in text
+- [x] Apply replacement based on:
   - User's proficiency level
   - Word density setting
   - Context (avoid names, quotes, technical terms)
-- [ ] Mark replaced words with special attributes for tap detection
-- [ ] Create ProcessedContent type with replacement metadata
-- [ ] Handle punctuation attached to words
+- [x] Mark replaced words with special attributes for tap detection
+- [x] Create ProcessedContent type with replacement metadata
+- [x] Handle punctuation attached to words
 
 ### Deliverables
 
-- TranslationEngine.processContent() method works
-- Text is tokenized while preserving HTML
-- Words are replaced according to settings
-- Replaced words are marked for interaction
+- ✅ `Tokenizer` class with HTML-aware tokenization
+- ✅ Context detection (quotes, names, code blocks)
+- ✅ `WordReplacer` with multiple selection strategies
+- ✅ Minimum word spacing constraint
+- ✅ Case preservation in replacements
+- ✅ Foreign word markers with data attributes
+- ✅ Integration with DynamicWordDatabase
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/services/TranslationEngine/Tokenizer.ts` - Text tokenization
-- `src/services/TranslationEngine/WordReplacer.ts` - Replacement logic
-- `src/services/TranslationEngine/TranslationEngine.ts` - Main service
-- `src/services/TranslationEngine/types.ts` - ProcessedContent types
+- `src/services/TranslationEngine/Tokenizer.ts` - HTML-aware tokenization
+- `src/services/TranslationEngine/WordReplacer.ts` - Word replacement logic
+- `src/services/TranslationEngine/TranslationEngine.ts` - Updated main service
+- `src/services/TranslationEngine/index.ts` - New exports
 
 ---
 
@@ -211,7 +215,7 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 | Day 2   | ✅ Complete | Jan 21 | Interactive slider, ReaderStyleService, settings modal   |
 | Day 3   | ✅ Complete | Jan 21 | WordDatabase, 235+ EN-EL words, variant matching         |
 | Day 3.5 | ✅ Complete | Jan 21 | Multi-language: TranslationAPI, FrequencyList, 28 langs  |
-| Day 4   | ⏳ Pending  |        |                                                          |
+| Day 4   | ✅ Complete | Jan 21 | Tokenizer, WordReplacer, context-aware replacement       |
 | Day 5   | ⏳ Pending  |        |                                                          |
 
 ---

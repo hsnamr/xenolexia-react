@@ -154,34 +154,37 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 
 ---
 
-## Day 5: Library UI Enhancements 📚
+## Day 5: Library UI Enhancements 📚 ✅
 
 **Goal:** Enhance library screen with sorting, filtering, and view options.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Implement grid/list view toggle
-- [ ] Add sort options (title, author, recent, progress)
-- [ ] Add filter options (format, reading status)
-- [ ] Implement book long-press menu (delete, edit, info)
-- [ ] Add book detail modal/screen
-- [ ] Implement pull-to-refresh with database sync
+- [x] Implement grid/list view toggle
+- [x] Add sort options (title, author, recent, progress)
+- [x] Add filter options (format, reading status, proficiency)
+- [x] Implement book long-press menu (delete, edit, info)
+- [x] Add book detail screen
+- [x] Create list view item component
 
 ### Deliverables
 
-- Toggle between grid and list views
-- Sort books by various criteria
-- Filter books by status
-- Context menu for book actions
-- Book detail view
+- ✅ ViewToggle component for grid/list switching
+- ✅ SortFilterBar with sort modal and filter bottom sheet
+- ✅ BookContextMenu with delete confirmation
+- ✅ BookListItem for list view display
+- ✅ BookDetailScreen with progress, stats, and actions
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/components/library/ViewToggle.tsx` - Grid/List toggle
-- `src/components/library/SortFilterBar.tsx` - Sort and filter UI
-- `src/components/library/BookContextMenu.tsx` - Long-press menu
-- `src/screens/Library/LibraryScreen.tsx` - Enhanced UI
-- `src/screens/BookDetail/BookDetailScreen.tsx` - Book details
+- `src/components/library/ViewToggle.tsx` - Grid/List toggle with icons
+- `src/components/library/SortFilterBar.tsx` - Sort and filter modals
+- `src/components/library/BookContextMenu.tsx` - Long-press actions menu
+- `src/components/library/BookListItem.tsx` - List view item
+- `src/components/library/index.ts` - Updated exports
+- `src/screens/BookDetail/BookDetailScreen.tsx` - Book details screen
+- `src/screens/BookDetail/index.ts` - Screen exports
 
 ---
 
@@ -193,7 +196,7 @@ Week 2 focuses on implementing the book import functionality, EPUB parsing, and 
 | Day 2 | ✅ Complete | Jan 20 | EPUB parsing, metadata extraction, TOC, cover extraction |
 | Day 3 | ✅ Complete | Jan 20 | ImageService, caching, thumbnails, BookCover component   |
 | Day 4 | ✅ Complete | Jan 20 | SQLite database, repositories, libraryStore persistence  |
-| Day 5 | ⏳ Pending  |        |                                                          |
+| Day 5 | ✅ Complete | Jan 21 | ViewToggle, SortFilterBar, BookContextMenu, BookDetail   |
 
 ---
 

@@ -6,15 +6,15 @@ import React from 'react';
 import {View, StyleSheet} from 'react-native';
 
 import {useNavigation} from '@react-navigation/native';
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {spacing} from '@/theme/tokens';
-import type {RootStackParamList} from '@/types';
-
 import {EmptyState} from '@components/common';
 import {Button} from '@components/ui';
 
 import {ImportBookButton} from './ImportBookButton';
+
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '@/types';
 
 type EmptyLibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

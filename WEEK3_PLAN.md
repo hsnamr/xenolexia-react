@@ -39,33 +39,36 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 
 ---
 
-## Day 2: Reader Settings & Customization ⚙️
+## Day 2: Reader Settings & Customization ⚙️ ✅
 
 **Goal:** Implement reader appearance settings (font, size, theme).
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Create reader settings panel/modal
-- [ ] Implement font family selection (Serif, Sans-serif, Dyslexic)
-- [ ] Add font size adjustment (slider or buttons)
-- [ ] Implement line spacing control
-- [ ] Add margin/padding adjustment
-- [ ] Inject custom CSS into WebView based on settings
-- [ ] Persist reader settings per book
+- [x] Create reader settings panel/modal
+- [x] Implement font family selection (Serif, Sans-serif, Dyslexic)
+- [x] Add font size adjustment (slider or buttons)
+- [x] Implement line spacing control
+- [x] Add margin/padding adjustment
+- [x] Inject custom CSS into WebView based on settings
+- [x] Persist reader settings per book
 
 ### Deliverables
 
-- Users can customize reader appearance
-- Settings are injected into EPUB content via CSS
-- Settings persist between sessions
-- Real-time preview of changes
+- ✅ Two-tab settings modal (Appearance & Reading)
+- ✅ 5 font options including OpenDyslexic
+- ✅ Interactive slider with +/- buttons
+- ✅ Real-time preview with foreign word sample
+- ✅ Settings persistence via AsyncStorage (global + per-book)
+- ✅ Complete CSS stylesheet generation
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/components/reader/ReaderSettingsModal.tsx` - Update with real controls
-- `src/services/ReaderStyleService.ts` - Generate CSS from settings
-- `src/stores/readerStore.ts` - Add settings state
-- `src/screens/Reader/ReaderScreen.tsx` - Integrate settings
+- `src/components/settings/SettingsSlider.tsx` - Interactive slider with gesture handling
+- `src/services/ReaderStyleService.ts` - CSS generation, theme/font definitions, persistence
+- `src/components/reader/ReaderSettingsModal.tsx` - Complete redesign with tabs
+- `src/services/index.ts` - Added ReaderStyleService exports
 
 ---
 
@@ -170,7 +173,7 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 | Day   | Status      | Date   | Notes                                                  |
 | ----- | ----------- | ------ | ------------------------------------------------------ |
 | Day 1 | ✅ Complete | Jan 21 | ChapterContentService, EPUBRenderer, readerStore       |
-| Day 2 | ⏳ Pending  |        |                                                        |
+| Day 2 | ✅ Complete | Jan 21 | Interactive slider, ReaderStyleService, settings modal |
 | Day 3 | ⏳ Pending  |        |                                                        |
 | Day 4 | ⏳ Pending  |        |                                                        |
 | Day 5 | ⏳ Pending  |        |                                                        |

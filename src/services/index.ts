@@ -45,3 +45,18 @@ export type {
   PlaceholderType,
   PlaceholderOptions,
 } from './ImageService';
+
+export {
+  ReaderStyleService,
+  READER_FONTS,
+  READER_THEMES,
+  generateStylesheet,
+  saveSettings,
+  loadSettings,
+  saveBookSettings,
+  loadBookSettings,
+} from './ReaderStyleService';
+export type {
+  ReaderStyleConfig,
+  ThemeColors,
+} from './ReaderStyleService';

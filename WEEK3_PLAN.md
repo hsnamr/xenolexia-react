@@ -175,35 +175,41 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 
 ---
 
-## Day 5: Foreign Word Interaction 👆
+## Day 5: Foreign Word Interaction 👆 ✅
 
 **Goal:** Enable tap interaction on foreign words in the reader.
+**Status:** COMPLETED
 
 ### Tasks
 
-- [ ] Inject JavaScript into WebView for tap detection
-- [ ] Bridge WebView messages to React Native
-- [ ] Create TranslationPopup component for word info
-- [ ] Display: foreign word, original, pronunciation
-- [ ] Add "Save to vocabulary" button
-- [ ] Add "I knew this" button
-- [ ] Implement long-press for more options
-- [ ] Style foreign words distinctly (underline, color)
+- [x] Inject JavaScript into WebView for tap detection
+- [x] Bridge WebView messages to React Native
+- [x] Create TranslationPopup component for word info
+- [x] Display: foreign word, original, pronunciation
+- [x] Add "Save to vocabulary" button
+- [x] Add "I knew this" button
+- [x] Implement long-press for more options
+- [x] Style foreign words distinctly (underline, color)
 
 ### Deliverables
 
-- Tapping foreign word shows popup with translation
-- Users can save words to vocabulary
-- Users can mark words as known
-- Foreign words are visually distinct in text
+- ✅ Comprehensive `InjectedScript` service for WebView JS
+- ✅ `useWordTapHandler` hook with full word lookup
+- ✅ Themed `TranslationPopup` with animations
+- ✅ Context sentence display in popup
+- ✅ Proficiency level badge
+- ✅ Database-backed `vocabularyStore` with SM-2 SRS
+- ✅ Word save/known tracking
+- ✅ Foreign word visual feedback (tap, highlight)
 
-### Files to Create/Update
+### Files Created/Updated
 
-- `src/screens/Reader/hooks/useWordTapHandler.ts` - Tap detection hook
-- `src/components/reader/TranslationPopup.tsx` - Update with real functionality
-- `src/services/TranslationEngine/InjectedScript.ts` - WebView JS
-- `src/screens/Reader/ReaderScreen.tsx` - Integrate popup
-- `src/stores/vocabularyStore.ts` - Add word from reader
+- `src/services/TranslationEngine/InjectedScript.ts` - WebView JS + CSS
+- `src/screens/Reader/hooks/useWordTapHandler.ts` - Word tap logic
+- `src/screens/Reader/hooks/index.ts` - Hook exports
+- `src/components/reader/TranslationPopup.tsx` - Complete redesign
+- `src/stores/vocabularyStore.ts` - Database integration
+- `src/screens/Reader/ReaderScreen.tsx` - Full integration
 
 ---
 
@@ -216,7 +222,7 @@ Week 3 focuses on implementing the core reading experience - the Reader screen w
 | Day 3   | ✅ Complete | Jan 21 | WordDatabase, 235+ EN-EL words, variant matching         |
 | Day 3.5 | ✅ Complete | Jan 21 | Multi-language: TranslationAPI, FrequencyList, 28 langs  |
 | Day 4   | ✅ Complete | Jan 21 | Tokenizer, WordReplacer, context-aware replacement       |
-| Day 5   | ⏳ Pending  |        |                                                          |
+| Day 5   | ✅ Complete | Jan 21 | InjectedScript, TranslationPopup, vocabularyStore        |
 
 ---
 

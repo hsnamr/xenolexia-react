@@ -28,6 +28,16 @@ export type {
   ReplacerOptions,
 } from './WordReplacer';
 
+// Injected Script (WebView JS)
+export {
+  generateInjectedScript,
+  generateForeignWordStyles,
+  getFullInjectedContent,
+  injectedScript,
+  foreignWordStyles,
+} from './InjectedScript';
+export type { InjectedScriptOptions } from './InjectedScript';
+
 // Word matching (legacy, uses bundled data)
 export { WordMatcher } from './WordMatcher';
 

@@ -16,6 +16,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RootStackScreenProps } from '@types/navigation';
 import type { ForeignWordData } from '@types/index';
 import { useLibraryStore } from '@stores/libraryStore';
+import { useVocabularyStore } from '@stores/vocabularyStore';
 import {
   useReaderStore,
   selectHasNextChapter,
@@ -25,6 +26,7 @@ import { TranslationPopup } from '@components/reader/TranslationPopup';
 import { ReaderSettingsModal } from '@components/reader/ReaderSettingsModal';
 import { ChapterNavigator } from '@components/reader/ChapterNavigator';
 import { EPUBRenderer } from './components/EPUBRenderer';
+import { useWordTapHandler, WebViewWordData } from './hooks';
 
 type ReaderScreenProps = RootStackScreenProps<'Reader'>;
 
@@ -39,6 +41,7 @@ export function ReaderScreen(): React.JSX.Element {
 
   // Store hooks
   const { getBook, updateBookProgress } = useLibraryStore();
+  const { initialize: initVocabulary, isWordSaved } = useVocabularyStore();
   const {
     currentBook,
     currentChapter,
@@ -62,11 +65,38 @@ export function ReaderScreen(): React.JSX.Element {
 
   const book = getBook(bookId);
 
+  // Word tap handler hook
+  const {
+    selectedWord,
+    contextSentence,
+    isLoading: isWordLoading,
+    handleWordTap,
+    handleWordLongPress,
+    saveWord,
+    markAsKnown,
+    dismiss: dismissPopup,
+  } = useWordTapHandler({
+    bookId,
+    bookTitle: book?.title || '',
+    sourceLanguage: book?.languagePair?.sourceLanguage || 'en',
+    targetLanguage: book?.languagePair?.targetLanguage || 'el',
+    onWordSaved: () => {
+      // Could show toast notification
+    },
+    onWordKnown: (wordId) => {
+      // Could track known words for exclusion
+    },
+  });
+
   // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<ForeignWordData | null>(null);
   const [showControls, setShowControls] = useState(true);
+
+  // Initialize vocabulary store
+  useEffect(() => {
+    initVocabulary();
+  }, [initVocabulary]);
 
   // Load book on mount
   useEffect(() => {
@@ -86,15 +116,19 @@ export function ReaderScreen(): React.JSX.Element {
     };
   }, [currentBook, overallProgress, updateBookProgress, closeBook]);
 
-  // Handlers
-  const handleWordTap = useCallback((word: ForeignWordData) => {
-    setSelectedWord(word);
+  // Handle word tap from WebView
+  const onWebViewWordTap = useCallback((data: ForeignWordData) => {
+    // Convert ForeignWordData to WebViewWordData format
+    const webViewData: WebViewWordData = {
+      foreignWord: data.foreignWord,
+      originalWord: data.originalWord,
+      wordId: data.wordEntry.id,
+      pronunciation: data.wordEntry.pronunciation,
+      partOfSpeech: data.wordEntry.partOfSpeech,
+    };
+    handleWordTap(webViewData);
     setShowControls(false);
-  }, []);
-
-  const handleDismissPopup = useCallback(() => {
-    setSelectedWord(null);
-  }, []);
+  }, [handleWordTap]);
 
   const handleToggleControls = useCallback(() => {
     if (!selectedWord) {
@@ -122,6 +156,11 @@ export function ReaderScreen(): React.JSX.Element {
     },
     [scrollPosition, updateScrollPosition]
   );
+
+  // Check if selected word is already saved
+  const isSelectedWordSaved = selectedWord
+    ? isWordSaved(selectedWord.originalWord, selectedWord.wordEntry.targetLanguage)
+    : false;
 
   // Get theme colors
   const themeColors = getThemeColors(settings.theme);
@@ -218,7 +257,7 @@ export function ReaderScreen(): React.JSX.Element {
             html={processedHtml}
             settings={settings}
             onProgressChange={handleProgressChange}
-            onWordTap={handleWordTap}
+            onWordTap={onWebViewWordTap}
             onContentReady={handleContentReady}
             initialScrollY={scrollPosition}
           />
@@ -270,7 +309,14 @@ export function ReaderScreen(): React.JSX.Element {
 
       {/* Translation Popup */}
       {selectedWord && (
-        <TranslationPopup word={selectedWord} onDismiss={handleDismissPopup} />
+        <TranslationPopup
+          word={selectedWord}
+          contextSentence={contextSentence}
+          onDismiss={dismissPopup}
+          onSave={saveWord}
+          onKnewIt={markAsKnown}
+          isAlreadySaved={isSelectedWordSaved}
+        />
       )}
 
       {/* Settings Modal */}

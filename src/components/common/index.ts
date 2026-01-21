@@ -37,3 +37,6 @@ export type {LoadingSpinnerProps, SkeletonProps} from './LoadingState';
 // Empty States
 export {EmptyState, EmptySearchResults, ErrorState, NoConnectionState} from './EmptyState';
 export type {EmptyStateProps} from './EmptyState';
+
+// Error Boundary
+export {ErrorBoundary, ScreenErrorBoundary} from './ErrorBoundary';

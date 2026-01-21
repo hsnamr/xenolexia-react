@@ -30,7 +30,13 @@ import {linkingConfig} from './linking';
 import type {RootStackParamList, MainTabsParamList} from './types';
 
 // Screens
-import {SettingsScreen} from '@screens/Settings/SettingsScreen';
+import {
+  SettingsScreen,
+  LanguageSettingsScreen,
+  DataManagementScreen,
+  NotificationSettingsScreen,
+  AboutScreen,
+} from '@screens/Settings';
 
 // Components
 
@@ -297,7 +303,7 @@ export function AppNavigator(): React.JSX.Element {
         />
         <Stack.Screen
           name="LanguageSettings"
-          component={() => <PlaceholderScreen title="Language Settings" />}
+          component={LanguageSettingsScreen}
           options={{
             animation: 'slide_from_right',
           }}
@@ -311,21 +317,21 @@ export function AppNavigator(): React.JSX.Element {
         />
         <Stack.Screen
           name="NotificationSettings"
-          component={() => <PlaceholderScreen title="Notification Settings" />}
+          component={NotificationSettingsScreen}
           options={{
             animation: 'slide_from_right',
           }}
         />
         <Stack.Screen
           name="DataManagement"
-          component={() => <PlaceholderScreen title="Data Management" />}
+          component={DataManagementScreen}
           options={{
             animation: 'slide_from_right',
           }}
         />
         <Stack.Screen
           name="About"
-          component={() => <PlaceholderScreen title="About Xenolexia" />}
+          component={AboutScreen}
           options={{
             animation: 'slide_from_right',
           }}

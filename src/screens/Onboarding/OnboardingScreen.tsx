@@ -1,421 +1,937 @@
 /**
  * Onboarding Screen - Initial setup flow for new users
+ *
+ * Steps:
+ * 1. Welcome - Introduction to Xenolexia
+ * 2. Source Language - Native language selection
+ * 3. Target Language - Learning language selection
+ * 4. Proficiency Level - Beginner/Intermediate/Advanced
+ * 5. Word Density - How many words to replace
+ * 6. Complete - Summary and start
  */
 
-import React, {useState, useCallback} from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  Animated,
+  FlatList,
+  TextInput,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
-import type {Language, ProficiencyLevel} from '@types/index';
-import {useUserStore} from '@stores/userStore';
+import { useTheme } from '@theme/index';
+import type { Language, ProficiencyLevel } from '@types/index';
+import { SUPPORTED_LANGUAGES, getLanguageInfo } from '@types/index';
+import { useUserStore } from '@stores/userStore';
 
-const {width} = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-type OnboardingStep = 'welcome' | 'native' | 'target' | 'level' | 'complete';
+// ============================================================================
+// Types
+// ============================================================================
 
-const LANGUAGES: {code: Language; name: string; flag: string}[] = [
-  {code: 'en', name: 'English', flag: '🇬🇧'},
-  {code: 'el', name: 'Greek', flag: '🇬🇷'},
-  {code: 'es', name: 'Spanish', flag: '🇪🇸'},
-  {code: 'fr', name: 'French', flag: '🇫🇷'},
-  {code: 'de', name: 'German', flag: '🇩🇪'},
-  {code: 'it', name: 'Italian', flag: '🇮🇹'},
-  {code: 'pt', name: 'Portuguese', flag: '🇵🇹'},
-];
+type OnboardingStep = 'welcome' | 'source' | 'target' | 'level' | 'density' | 'complete';
 
-const LEVELS: {level: ProficiencyLevel; title: string; description: string; cefr: string}[] = [
+const STEPS: OnboardingStep[] = ['welcome', 'source', 'target', 'level', 'density', 'complete'];
+
+interface LevelOption {
+  level: ProficiencyLevel;
+  title: string;
+  description: string;
+  cefr: string;
+  examples: string[];
+}
+
+const LEVEL_OPTIONS: LevelOption[] = [
   {
     level: 'beginner',
     title: 'Beginner',
-    description: 'Basic vocabulary: numbers, colors, common objects',
+    description: 'Basic vocabulary: numbers, colors, common objects, greetings',
     cefr: 'A1-A2',
+    examples: ['hello', 'book', 'water', 'good'],
   },
   {
     level: 'intermediate',
     title: 'Intermediate',
-    description: 'Everyday vocabulary: actions, descriptions, abstract concepts',
+    description: 'Everyday vocabulary: actions, descriptions, feelings',
     cefr: 'B1-B2',
+    examples: ['remember', 'beautiful', 'journey', 'believe'],
   },
   {
     level: 'advanced',
     title: 'Advanced',
     description: 'Complex vocabulary: idioms, technical terms, nuanced expressions',
     cefr: 'C1-C2',
+    examples: ['melancholy', 'ubiquitous', 'serendipity', 'ephemeral'],
   },
 ];
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function OnboardingScreen(): React.JSX.Element {
   const navigation = useNavigation();
-  const {updatePreferences} = useUserStore();
+  const { colors, isDark } = useTheme();
+  const { updatePreferences } = useUserStore();
 
-  const [step, setStep] = useState<OnboardingStep>('welcome');
-  const [nativeLanguage, setNativeLanguage] = useState<Language>('en');
-  const [targetLanguage, setTargetLanguage] = useState<Language>('el');
+  // State
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
+  const [sourceLanguage, setSourceLanguage] = useState<Language>('en');
+  const [targetLanguage, setTargetLanguage] = useState<Language>('es');
   const [proficiencyLevel, setProficiencyLevel] = useState<ProficiencyLevel>('beginner');
+  const [wordDensity, setWordDensity] = useState(0.3);
+  const [languageSearch, setLanguageSearch] = useState('');
+
+  // Animation
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  const currentStepIndex = STEPS.indexOf(currentStep);
+
+  // Animate step transitions
+  const animateTransition = useCallback((direction: 'forward' | 'back', callback: () => void) => {
+    const toValue = direction === 'forward' ? -50 : 50;
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      callback();
+      slideAnim.setValue(direction === 'forward' ? 50 : -50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [fadeAnim, slideAnim]);
+
+  const goToStep = useCallback((step: OnboardingStep) => {
+    const newIndex = STEPS.indexOf(step);
+    const direction = newIndex > currentStepIndex ? 'forward' : 'back';
+    animateTransition(direction, () => setCurrentStep(step));
+  }, [currentStepIndex, animateTransition]);
+
+  const goNext = useCallback(() => {
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex < STEPS.length) {
+      goToStep(STEPS[nextIndex]);
+    }
+  }, [currentStepIndex, goToStep]);
+
+  const goBack = useCallback(() => {
+    const prevIndex = currentStepIndex - 1;
+    if (prevIndex >= 0) {
+      goToStep(STEPS[prevIndex]);
+    }
+  }, [currentStepIndex, goToStep]);
 
   const handleComplete = useCallback(() => {
     updatePreferences({
-      defaultSourceLanguage: nativeLanguage,
+      defaultSourceLanguage: sourceLanguage,
       defaultTargetLanguage: targetLanguage,
       defaultProficiencyLevel: proficiencyLevel,
+      defaultWordDensity: wordDensity,
       hasCompletedOnboarding: true,
     });
     navigation.reset({
       index: 0,
-      routes: [{name: 'MainTabs'}],
+      routes: [{ name: 'MainTabs' as never }],
     });
-  }, [navigation, updatePreferences, nativeLanguage, targetLanguage, proficiencyLevel]);
+  }, [navigation, updatePreferences, sourceLanguage, targetLanguage, proficiencyLevel, wordDensity]);
+
+  // Filter languages for search
+  const filteredLanguages = SUPPORTED_LANGUAGES.filter(lang =>
+    lang.name.toLowerCase().includes(languageSearch.toLowerCase()) ||
+    lang.nativeName.toLowerCase().includes(languageSearch.toLowerCase())
+  );
+
+  // Dynamic styles based on theme
+  const dynamicStyles = {
+    container: { backgroundColor: colors.background.primary },
+    title: { color: colors.text.primary },
+    subtitle: { color: colors.text.secondary },
+    description: { color: colors.text.tertiary },
+    card: { backgroundColor: colors.background.secondary },
+    cardSelected: { 
+      backgroundColor: colors.primary[500] + '15',
+      borderColor: colors.primary[500],
+    },
+    primaryButton: { backgroundColor: colors.primary[500] },
+    secondaryButton: { 
+      backgroundColor: colors.background.secondary,
+      borderColor: colors.border.primary,
+    },
+  };
+
+  // ============================================================================
+  // Render Functions
+  // ============================================================================
+
+  const renderStepIndicator = () => (
+    <View style={styles.stepIndicator}>
+      {STEPS.map((step, index) => (
+        <View
+          key={step}
+          style={[
+            styles.stepDot,
+            {
+              backgroundColor:
+                index <= currentStepIndex
+                  ? colors.primary[500]
+                  : colors.background.tertiary,
+            },
+            index === currentStepIndex && styles.stepDotActive,
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   const renderWelcome = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.emoji}>📚🌍</Text>
-      <Text style={styles.title}>Welcome to Xenolexia</Text>
-      <Text style={styles.subtitle}>
-        Learn languages naturally through the stories you love
-      </Text>
-      <Text style={styles.description}>
-        As you read books in your native language, words will be gradually replaced 
-        with your target language. Learn from context, not flashcards.
-      </Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => setStep('native')}>
-        <Text style={styles.primaryButtonText}>Get Started</Text>
-      </TouchableOpacity>
+    <View style={styles.stepContent}>
+      <View style={styles.welcomeIcon}>
+        <TextDisplay text="📚" style={styles.welcomeEmoji} />
+        <TextDisplay text="🌍" style={styles.welcomeEmoji} />
+      </View>
+      <TextDisplay text="Welcome to Xenolexia" style={[styles.title, dynamicStyles.title]} />
+      <TextDisplay
+        text="Learn languages naturally through the stories you love"
+        style={[styles.subtitle, dynamicStyles.subtitle]}
+      />
+      <View style={[styles.featureCard, dynamicStyles.card]}>
+        <View style={styles.featureRow}>
+          <TextDisplay text="📖" style={styles.featureIcon} />
+          <TextDisplay
+            text="Read books in your native language with foreign words sprinkled in"
+            style={[styles.featureText, dynamicStyles.description]}
+          />
+        </View>
+        <View style={styles.featureRow}>
+          <TextDisplay text="🎯" style={styles.featureIcon} />
+          <TextDisplay
+            text="Learn from context, not flashcards — words stick naturally"
+            style={[styles.featureText, dynamicStyles.description]}
+          />
+        </View>
+        <View style={styles.featureRow}>
+          <TextDisplay text="📈" style={styles.featureIcon} />
+          <TextDisplay
+            text="Progress at your own pace with adaptive difficulty"
+            style={[styles.featureText, dynamicStyles.description]}
+          />
+        </View>
+      </View>
     </View>
   );
 
   const renderLanguageSelection = (
     title: string,
-    selectedLanguage: Language,
+    selectedLang: Language,
     onSelect: (lang: Language) => void,
-    onNext: () => void,
-    excludeLanguage?: Language,
+    excludeLang?: Language
   ) => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>{title}</Text>
-      <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
-        {LANGUAGES.filter(l => l.code !== excludeLanguage).map(lang => (
+    <View style={styles.stepContent}>
+      <TextDisplay text={title} style={[styles.stepTitle, dynamicStyles.title]} />
+      
+      {/* Search */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.background.secondary }]}>
+        <TextDisplay text="🔍" style={styles.searchIcon} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text.primary }]}
+          placeholder="Search languages..."
+          placeholderTextColor={colors.text.tertiary}
+          value={languageSearch}
+          onChangeText={setLanguageSearch}
+        />
+      </View>
+
+      <FlatList
+        data={filteredLanguages.filter(l => l.code !== excludeLang)}
+        keyExtractor={(item) => item.code}
+        style={styles.languageList}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
           <TouchableOpacity
-            key={lang.code}
             style={[
-              styles.optionItem,
-              selectedLanguage === lang.code && styles.optionItemSelected,
+              styles.languageItem,
+              dynamicStyles.card,
+              selectedLang === item.code && dynamicStyles.cardSelected,
             ]}
-            onPress={() => onSelect(lang.code)}>
-            <Text style={styles.optionFlag}>{lang.flag}</Text>
-            <Text
-              style={[
-                styles.optionText,
-                selectedLanguage === lang.code && styles.optionTextSelected,
-              ]}>
-              {lang.name}
-            </Text>
-            {selectedLanguage === lang.code && (
-              <Text style={styles.checkmark}>✓</Text>
+            onPress={() => onSelect(item.code)}
+            activeOpacity={0.7}
+          >
+            <TextDisplay text={item.flag || '🌐'} style={styles.languageFlag} />
+            <View style={styles.languageInfo}>
+              <TextDisplay
+                text={item.name}
+                style={[
+                  styles.languageName,
+                  { color: selectedLang === item.code ? colors.primary[500] : colors.text.primary },
+                ]}
+              />
+              <TextDisplay
+                text={item.nativeName}
+                style={[styles.languageNative, dynamicStyles.description]}
+              />
+            </View>
+            {selectedLang === item.code && (
+              <View style={[styles.checkBadge, { backgroundColor: colors.primary[500] }]}>
+                <TextDisplay text="✓" style={styles.checkText} />
+              </View>
             )}
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <TouchableOpacity style={styles.primaryButton} onPress={onNext}>
-        <Text style={styles.primaryButtonText}>Continue</Text>
-      </TouchableOpacity>
+        )}
+      />
     </View>
   );
 
   const renderLevelSelection = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What's your level in {LANGUAGES.find(l => l.code === targetLanguage)?.name}?</Text>
-      <View style={styles.levelsList}>
-        {LEVELS.map(({level, title, description, cefr}) => (
+    <View style={styles.stepContent}>
+      <TextDisplay
+        text={`What's your level in ${getLanguageInfo(targetLanguage)?.name || 'the target language'}?`}
+        style={[styles.stepTitle, dynamicStyles.title]}
+      />
+      
+      <View style={styles.levelList}>
+        {LEVEL_OPTIONS.map((option) => (
           <TouchableOpacity
-            key={level}
+            key={option.level}
             style={[
               styles.levelItem,
-              proficiencyLevel === level && styles.levelItemSelected,
+              dynamicStyles.card,
+              proficiencyLevel === option.level && dynamicStyles.cardSelected,
             ]}
-            onPress={() => setProficiencyLevel(level)}>
+            onPress={() => setProficiencyLevel(option.level)}
+            activeOpacity={0.7}
+          >
             <View style={styles.levelHeader}>
-              <Text
+              <TextDisplay
+                text={option.title}
                 style={[
                   styles.levelTitle,
-                  proficiencyLevel === level && styles.levelTitleSelected,
-                ]}>
-                {title}
-              </Text>
-              <Text style={styles.levelCefr}>{cefr}</Text>
+                  { color: proficiencyLevel === option.level ? colors.primary[500] : colors.text.primary },
+                ]}
+              />
+              <View style={[styles.cefrBadge, { backgroundColor: colors.primary[500] + '20' }]}>
+                <TextDisplay
+                  text={option.cefr}
+                  style={[styles.cefrText, { color: colors.primary[500] }]}
+                />
+              </View>
             </View>
-            <Text style={styles.levelDescription}>{description}</Text>
+            <TextDisplay
+              text={option.description}
+              style={[styles.levelDescription, dynamicStyles.description]}
+            />
+            <View style={styles.exampleWords}>
+              {option.examples.map((word, i) => (
+                <View
+                  key={word}
+                  style={[styles.exampleBadge, { backgroundColor: colors.background.tertiary }]}
+                >
+                  <TextDisplay
+                    text={word}
+                    style={[styles.exampleText, { color: colors.text.secondary }]}
+                  />
+                </View>
+              ))}
+            </View>
           </TouchableOpacity>
         ))}
       </View>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => setStep('complete')}>
-        <Text style={styles.primaryButtonText}>Continue</Text>
-      </TouchableOpacity>
     </View>
   );
 
-  const renderComplete = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.emoji}>🎉</Text>
-      <Text style={styles.title}>You're All Set!</Text>
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Your Learning Setup</Text>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Reading in:</Text>
-          <Text style={styles.summaryValue}>
-            {LANGUAGES.find(l => l.code === nativeLanguage)?.flag}{' '}
-            {LANGUAGES.find(l => l.code === nativeLanguage)?.name}
-          </Text>
+  const renderDensitySelection = () => {
+    const densityPercentage = Math.round(wordDensity * 100);
+    
+    return (
+      <View style={styles.stepContent}>
+        <TextDisplay
+          text="How many words should be replaced?"
+          style={[styles.stepTitle, dynamicStyles.title]}
+        />
+        <TextDisplay
+          text="Start low and increase as you get comfortable"
+          style={[styles.subtitle, dynamicStyles.subtitle]}
+        />
+
+        {/* Density Value Display */}
+        <View style={[styles.densityDisplay, { backgroundColor: colors.primary[500] + '15' }]}>
+          <TextDisplay
+            text={`${densityPercentage}%`}
+            style={[styles.densityValue, { color: colors.primary[500] }]}
+          />
+          <TextDisplay
+            text="of eligible words"
+            style={[styles.densityLabel, dynamicStyles.description]}
+          />
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Learning:</Text>
-          <Text style={styles.summaryValue}>
-            {LANGUAGES.find(l => l.code === targetLanguage)?.flag}{' '}
-            {LANGUAGES.find(l => l.code === targetLanguage)?.name}
-          </Text>
+
+        {/* Density Slider */}
+        <View style={styles.sliderContainer}>
+          <TextDisplay text="10%" style={[styles.sliderLabel, dynamicStyles.description]} />
+          <View style={[styles.sliderTrack, { backgroundColor: colors.background.tertiary }]}>
+            <View
+              style={[
+                styles.sliderFill,
+                {
+                  backgroundColor: colors.primary[500],
+                  width: `${((wordDensity - 0.1) / 0.4) * 100}%`,
+                },
+              ]}
+            />
+            <TouchableOpacity
+              style={[
+                styles.sliderThumb,
+                {
+                  backgroundColor: colors.primary[500],
+                  left: `${((wordDensity - 0.1) / 0.4) * 100}%`,
+                },
+              ]}
+              onPress={() => {}}
+            />
+          </View>
+          <TextDisplay text="50%" style={[styles.sliderLabel, dynamicStyles.description]} />
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Level:</Text>
-          <Text style={styles.summaryValue}>
-            {LEVELS.find(l => l.level === proficiencyLevel)?.title}
-          </Text>
+
+        {/* Preset Buttons */}
+        <View style={styles.presetButtons}>
+          {[
+            { value: 0.1, label: 'Gentle', desc: 'A few words per page' },
+            { value: 0.2, label: 'Light', desc: 'Comfortable learning' },
+            { value: 0.3, label: 'Moderate', desc: 'Active learning' },
+            { value: 0.4, label: 'Intense', desc: 'Challenge mode' },
+            { value: 0.5, label: 'Immersive', desc: 'Maximum exposure' },
+          ].map((preset) => (
+            <TouchableOpacity
+              key={preset.value}
+              style={[
+                styles.presetButton,
+                dynamicStyles.card,
+                wordDensity === preset.value && dynamicStyles.cardSelected,
+              ]}
+              onPress={() => setWordDensity(preset.value)}
+            >
+              <TextDisplay
+                text={preset.label}
+                style={[
+                  styles.presetLabel,
+                  { color: wordDensity === preset.value ? colors.primary[500] : colors.text.primary },
+                ]}
+              />
+              <TextDisplay
+                text={preset.desc}
+                style={[styles.presetDesc, dynamicStyles.description]}
+              />
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
-      <Text style={styles.description}>
-        Import your first book and start learning through reading!
-      </Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={handleComplete}>
-        <Text style={styles.primaryButtonText}>Start Reading</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
-  const renderStep = () => {
-    switch (step) {
+  const renderComplete = () => {
+    const sourceLang = getLanguageInfo(sourceLanguage);
+    const targetLang = getLanguageInfo(targetLanguage);
+    const level = LEVEL_OPTIONS.find(l => l.level === proficiencyLevel);
+
+    return (
+      <View style={styles.stepContent}>
+        <TextDisplay text="🎉" style={styles.completeEmoji} />
+        <TextDisplay text="You're All Set!" style={[styles.title, dynamicStyles.title]} />
+
+        <View style={[styles.summaryCard, dynamicStyles.card]}>
+          <TextDisplay
+            text="Your Learning Setup"
+            style={[styles.summaryTitle, dynamicStyles.subtitle]}
+          />
+          
+          <View style={styles.summaryRow}>
+            <TextDisplay text="Reading in" style={[styles.summaryLabel, dynamicStyles.description]} />
+            <View style={styles.summaryValueRow}>
+              <TextDisplay text={sourceLang?.flag || ''} style={styles.summaryFlag} />
+              <TextDisplay text={sourceLang?.name || ''} style={[styles.summaryValue, dynamicStyles.title]} />
+            </View>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <TextDisplay text="Learning" style={[styles.summaryLabel, dynamicStyles.description]} />
+            <View style={styles.summaryValueRow}>
+              <TextDisplay text={targetLang?.flag || ''} style={styles.summaryFlag} />
+              <TextDisplay text={targetLang?.name || ''} style={[styles.summaryValue, dynamicStyles.title]} />
+            </View>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <TextDisplay text="Level" style={[styles.summaryLabel, dynamicStyles.description]} />
+            <TextDisplay text={level?.title || ''} style={[styles.summaryValue, dynamicStyles.title]} />
+          </View>
+
+          <View style={styles.summaryRow}>
+            <TextDisplay text="Density" style={[styles.summaryLabel, dynamicStyles.description]} />
+            <TextDisplay
+              text={`${Math.round(wordDensity * 100)}%`}
+              style={[styles.summaryValue, dynamicStyles.title]}
+            />
+          </View>
+        </View>
+
+        <TextDisplay
+          text="Import your first book and start learning through reading!"
+          style={[styles.description, dynamicStyles.description]}
+        />
+      </View>
+    );
+  };
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
       case 'welcome':
         return renderWelcome();
-      case 'native':
+      case 'source':
         return renderLanguageSelection(
           "What's your native language?",
-          nativeLanguage,
-          setNativeLanguage,
-          () => setStep('target'),
+          sourceLanguage,
+          setSourceLanguage
         );
       case 'target':
         return renderLanguageSelection(
           'Which language do you want to learn?',
           targetLanguage,
-          setTargetLanguage,
-          () => setStep('level'),
-          nativeLanguage,
+          (lang) => {
+            setTargetLanguage(lang);
+            setLanguageSearch('');
+          },
+          sourceLanguage
         );
       case 'level':
         return renderLevelSelection();
+      case 'density':
+        return renderDensitySelection();
       case 'complete':
         return renderComplete();
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {step !== 'welcome' && (
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            const steps: OnboardingStep[] = ['welcome', 'native', 'target', 'level', 'complete'];
-            const currentIndex = steps.indexOf(step);
-            if (currentIndex > 0) {
-              setStep(steps[currentIndex - 1]);
-            }
-          }}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-      )}
-      {renderStep()}
+    <SafeAreaView style={[styles.container, dynamicStyles.container]}>
+      {/* Header with back button and step indicator */}
+      <View style={styles.header}>
+        {currentStep !== 'welcome' ? (
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <TextDisplay text="←" style={[styles.backText, { color: colors.primary[500] }]} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backButton} />
+        )}
+        {renderStepIndicator()}
+        <View style={styles.backButton} />
+      </View>
+
+      {/* Animated Content */}
+      <Animated.View
+        style={[
+          styles.contentContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateX: slideAnim }],
+          },
+        ]}
+      >
+        {renderCurrentStep()}
+      </Animated.View>
+
+      {/* Footer with buttons */}
+      <View style={styles.footer}>
+        {currentStep === 'complete' ? (
+          <TouchableOpacity
+            style={[styles.primaryButton, dynamicStyles.primaryButton]}
+            onPress={handleComplete}
+          >
+            <TextDisplay text="Start Reading" style={styles.primaryButtonText} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.primaryButton, dynamicStyles.primaryButton]}
+            onPress={goNext}
+          >
+            <TextDisplay
+              text={currentStep === 'welcome' ? 'Get Started' : 'Continue'}
+              style={styles.primaryButtonText}
+            />
+          </TouchableOpacity>
+        )}
+
+        {currentStep === 'welcome' && (
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={() => {
+              updatePreferences({ hasCompletedOnboarding: true });
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' as never }],
+              });
+            }}
+          >
+            <TextDisplay text="Skip for now" style={[styles.skipText, { color: colors.text.tertiary }]} />
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
+// Simple text display component
+function TextDisplay({ text, style }: { text: string; style?: any }) {
+  const { Text } = require('react-native');
+  return <Text style={style}>{text}</Text>;
+}
+
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
+  backButton: {
+    padding: 8,
+    width: 48,
+  },
+  backText: {
+    fontSize: 28,
+    fontWeight: '300',
+  },
+  cefrBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  cefrText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  checkBadge: {
+    alignItems: 'center',
+    borderRadius: 12,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  checkText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  completeEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    zIndex: 10,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#0ea5e9',
-    fontWeight: '500',
-  },
-  stepContainer: {
+  contentContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
+  },
+  densityDisplay: {
     alignItems: 'center',
-  },
-  emoji: {
-    fontSize: 80,
+    borderRadius: 16,
     marginBottom: 24,
+    paddingVertical: 24,
   },
-  title: {
-    fontSize: 32,
+  densityLabel: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  densityValue: {
+    fontSize: 48,
     fontWeight: '700',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 24,
   },
   description: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 16,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
   },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: 32,
+  exampleBadge: {
+    borderRadius: 6,
+    marginRight: 6,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  optionsList: {
-    flex: 1,
-    width: '100%',
+  exampleText: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
-  optionItem: {
+  exampleWords: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: '#f9fafb',
+    flexWrap: 'wrap',
+    marginTop: 4,
   },
-  optionItemSelected: {
-    backgroundColor: '#e0f2fe',
-    borderWidth: 2,
-    borderColor: '#0ea5e9',
-  },
-  optionFlag: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  optionText: {
-    flex: 1,
-    fontSize: 18,
-    color: '#1f2937',
-    fontWeight: '500',
-  },
-  optionTextSelected: {
-    color: '#0369a1',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#0ea5e9',
-    fontWeight: '700',
-  },
-  levelsList: {
-    flex: 1,
+  featureCard: {
+    borderRadius: 16,
+    marginTop: 32,
+    padding: 20,
     width: '100%',
   },
-  levelItem: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: '#f9fafb',
+  featureIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  levelItemSelected: {
-    backgroundColor: '#e0f2fe',
-    borderWidth: 2,
-    borderColor: '#0ea5e9',
+  featureRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    marginBottom: 16,
   },
-  levelHeader: {
+  featureText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  footer: {
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+  },
+  header: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  languageFlag: {
+    fontSize: 32,
+    marginRight: 14,
+  },
+  languageInfo: {
+    flex: 1,
+  },
+  languageItem: {
     alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    flexDirection: 'row',
     marginBottom: 8,
+    padding: 14,
+  },
+  languageList: {
+    flex: 1,
+    marginTop: 8,
+  },
+  languageName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  languageNative: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  levelDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  levelHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  levelItem: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginBottom: 12,
+    padding: 16,
+  },
+  levelList: {
+    flex: 1,
+    marginTop: 16,
   },
   levelTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
   },
-  levelTitleSelected: {
-    color: '#0369a1',
+  presetButton: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginBottom: 8,
+    padding: 14,
   },
-  levelCefr: {
-    fontSize: 14,
+  presetButtons: {},
+  presetDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  presetLabel: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#0ea5e9',
-    backgroundColor: '#e0f2fe',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
   },
-  levelDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
+  primaryButton: {
+    alignItems: 'center',
+    borderRadius: 28,
+    paddingVertical: 16,
   },
-  summaryCard: {
-    width: '100%',
-    backgroundColor: '#f9fafb',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
   },
-  summaryTitle: {
+  searchContainer: {
+    alignItems: 'center',
+    borderRadius: 12,
+    flexDirection: 'row',
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
+  },
+  skipButton: {
+    alignItems: 'center',
+    marginTop: 16,
+    padding: 8,
+  },
+  skipText: {
+    fontSize: 15,
+  },
+  sliderContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  sliderFill: {
+    borderRadius: 3,
+    height: '100%',
+    position: 'absolute',
+  },
+  sliderLabel: {
+    fontSize: 13,
+    width: 36,
+  },
+  sliderThumb: {
+    borderRadius: 14,
+    height: 28,
+    marginLeft: -14,
+    position: 'absolute',
+    top: -11,
+    width: 28,
+  },
+  sliderTrack: {
+    borderRadius: 3,
+    flex: 1,
+    height: 6,
+    marginHorizontal: 12,
+    position: 'relative',
+  },
+  stepContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  stepDot: {
+    borderRadius: 4,
+    height: 8,
+    marginHorizontal: 4,
+    width: 8,
+  },
+  stepDotActive: {
+    width: 24,
+  },
+  stepIndicator: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
     marginBottom: 16,
     textAlign: 'center',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
+  summaryCard: {
+    borderRadius: 16,
+    marginTop: 24,
+    padding: 20,
+    width: '100%',
+  },
+  summaryFlag: {
+    fontSize: 20,
+    marginRight: 8,
   },
   summaryLabel: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 14,
+  },
+  summaryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   summaryValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
   },
-  primaryButton: {
-    backgroundColor: '#0ea5e9',
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 30,
-    width: '100%',
+  summaryValueRow: {
     alignItems: 'center',
+    flexDirection: 'row',
   },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  welcomeEmoji: {
+    fontSize: 48,
+  },
+  welcomeIcon: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 24,
   },
 });

@@ -46,6 +46,10 @@ interface VocabularyState {
 
   // Check if word exists
   isWordSaved: (sourceWord: string, targetLanguage: Language) => boolean;
+
+  // Data management
+  clearVocabulary: () => Promise<void>;
+  getDueCount: () => number;
 }
 
 // ============================================================================
@@ -344,6 +348,32 @@ export const useVocabularyStore = create<VocabularyState>((set, get) => ({
         w.sourceWord.toLowerCase() === sourceWord.toLowerCase() &&
         w.targetLanguage === targetLanguage
     );
+  },
+
+  /**
+   * Clear all vocabulary (for data management)
+   */
+  clearVocabulary: async () => {
+    set({ isLoading: true });
+    try {
+      await vocabularyRepository.deleteAll();
+      set({
+        vocabulary: [],
+        stats: initialStats,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('Failed to clear vocabulary:', error);
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  /**
+   * Get count of words due for review
+   */
+  getDueCount: () => {
+    return get().stats.dueToday;
   },
 }));
 

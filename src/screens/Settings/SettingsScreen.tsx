@@ -1,251 +1,419 @@
 /**
- * Settings Screen - App configuration
+ * Settings Screen - Complete app configuration
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import {View, Text, StyleSheet, ScrollView, Switch} from 'react-native';
-
-import {SettingsSelect} from '@components/settings/SettingsSelect';
-import {SettingsSlider} from '@components/settings/SettingsSlider';
-import {useNavigation} from '@react-navigation/native';
-import {useUserStore} from '@stores/userStore';
-import {SafeAreaView} from 'react-native-safe-area-context';
-
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {RootStackParamList} from '@types/index';
+import { useTheme } from '@theme/index';
+import { useUserStore } from '@stores/userStore';
+import { getLanguageInfo, SUPPORTED_LANGUAGES } from '@types/index';
+import type { RootStackParamList, Language, ProficiencyLevel } from '@types/index';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function SettingsScreen(): React.JSX.Element {
   const navigation = useNavigation<SettingsNavigationProp>();
-  const {preferences, updatePreferences} = useUserStore();
+  const { colors } = useTheme();
+  const { preferences, updatePreferences, resetPreferences } = useUserStore();
+
+  const sourceLang = getLanguageInfo(preferences.defaultSourceLanguage);
+  const targetLang = getLanguageInfo(preferences.defaultTargetLanguage);
+
+  // Navigation handlers
+  const handleNavigate = useCallback((screen: keyof RootStackParamList) => {
+    navigation.navigate(screen as never);
+  }, [navigation]);
+
+  // Destructive actions
+  const handleResetSettings = useCallback(() => {
+    Alert.alert(
+      'Reset Settings',
+      'This will reset all settings to their defaults. Your books and vocabulary will not be affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            resetPreferences?.();
+            Alert.alert('Done', 'Settings have been reset to defaults.');
+          },
+        },
+      ]
+    );
+  }, [resetPreferences]);
+
+  // Dynamic styles
+  const dynamicStyles = {
+    container: { backgroundColor: colors.background.primary },
+    header: { borderBottomColor: colors.border.secondary },
+    section: { backgroundColor: colors.background.secondary },
+    sectionTitle: { color: colors.text.tertiary },
+    rowLabel: { color: colors.text.primary },
+    rowValue: { color: colors.text.secondary },
+    rowIcon: { color: colors.text.tertiary },
+    divider: { backgroundColor: colors.border.secondary },
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.backButton} onPress={() => navigation.goBack()}>
-          ← Back
-        </Text>
-        <Text style={styles.title}>Settings</Text>
-        <View style={styles.placeholder} />
+    <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
+      {/* Header */}
+      <View style={[styles.header, dynamicStyles.header]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TextDisplay text="←" style={[styles.backText, { color: colors.primary[500] }]} />
+        </TouchableOpacity>
+        <TextDisplay text="Settings" style={[styles.title, { color: colors.text.primary }]} />
+        <View style={styles.backButton} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Word Density */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Learning</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingHeader}>
-              <Text style={styles.settingLabel}>Word Replacement Density</Text>
-              <Text style={styles.settingValue}>
-                {Math.round(preferences.defaultWordDensity * 100)}%
-              </Text>
-            </View>
-            <Text style={styles.settingDescription}>
-              Percentage of eligible words to replace with target language
-            </Text>
-            <SettingsSlider
-              value={preferences.defaultWordDensity}
-              onValueChange={value => updatePreferences({defaultWordDensity: value})}
-              minimumValue={0.1}
-              maximumValue={0.9}
-              step={0.1}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingHeader}>
-              <Text style={styles.settingLabel}>Daily Goal</Text>
-              <Text style={styles.settingValue}>{preferences.dailyGoal} min</Text>
-            </View>
-            <SettingsSlider
-              value={preferences.dailyGoal}
-              onValueChange={value => updatePreferences({dailyGoal: Math.round(value)})}
-              minimumValue={5}
-              maximumValue={60}
-              step={5}
-            />
-          </View>
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Daily Reminders</Text>
-                <Text style={styles.settingDescription}>Get reminded to read every day</Text>
+        {/* Learning Section */}
+        <View style={styles.sectionContainer}>
+          <TextDisplay text="LEARNING" style={[styles.sectionTitle, dynamicStyles.sectionTitle]} />
+          <View style={[styles.section, dynamicStyles.section]}>
+            {/* Languages */}
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('LanguageSettings')}
+            >
+              <TextDisplay text="🌍" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Languages" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text={`${sourceLang?.flag} ${sourceLang?.name} → ${targetLang?.flag} ${targetLang?.name}`}
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
               </View>
-              <Switch
-                value={preferences.notificationsEnabled}
-                onValueChange={value => updatePreferences({notificationsEnabled: value})}
-                trackColor={{false: '#e5e7eb', true: '#0ea5e9'}}
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            {/* Proficiency Level */}
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('LanguageSettings')}
+            >
+              <TextDisplay text="📊" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Proficiency Level" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text={preferences.defaultProficiencyLevel.charAt(0).toUpperCase() + preferences.defaultProficiencyLevel.slice(1)}
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            {/* Word Density */}
+            <View style={styles.row}>
+              <TextDisplay text="📝" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Word Density" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text={`${Math.round(preferences.defaultWordDensity * 100)}% of words replaced`}
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay
+                text={`${Math.round(preferences.defaultWordDensity * 100)}%`}
+                style={[styles.rowValueBadge, { color: colors.primary[500] }]}
+              />
+            </View>
+
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            {/* Daily Goal */}
+            <View style={styles.row}>
+              <TextDisplay text="🎯" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Daily Reading Goal" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Set a daily reading target"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay
+                text={`${preferences.dailyGoal} min`}
+                style={[styles.rowValueBadge, { color: colors.primary[500] }]}
               />
             </View>
           </View>
         </View>
 
-        {/* Reader Defaults */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reader Defaults</Text>
-
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Default Theme</Text>
-            <SettingsSelect
-              value={preferences.readerSettings.theme}
-              options={[
-                {value: 'light', label: 'Light'},
-                {value: 'dark', label: 'Dark'},
-                {value: 'sepia', label: 'Sepia'},
-              ]}
-              onSelect={value =>
-                updatePreferences({
-                  readerSettings: {...preferences.readerSettings, theme: value as any},
-                })
-              }
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingHeader}>
-              <Text style={styles.settingLabel}>Font Size</Text>
-              <Text style={styles.settingValue}>{preferences.readerSettings.fontSize}pt</Text>
-            </View>
-            <SettingsSlider
-              value={preferences.readerSettings.fontSize}
-              onValueChange={value =>
-                updatePreferences({
-                  readerSettings: {...preferences.readerSettings, fontSize: Math.round(value)},
-                })
-              }
-              minimumValue={12}
-              maximumValue={28}
-              step={1}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingHeader}>
-              <Text style={styles.settingLabel}>Line Height</Text>
-              <Text style={styles.settingValue}>
-                {preferences.readerSettings.lineHeight.toFixed(1)}×
-              </Text>
-            </View>
-            <SettingsSlider
-              value={preferences.readerSettings.lineHeight}
-              onValueChange={value =>
-                updatePreferences({
-                  readerSettings: {...preferences.readerSettings, lineHeight: value},
-                })
-              }
-              minimumValue={1.2}
-              maximumValue={2.0}
-              step={0.1}
-            />
+        {/* Reader Section */}
+        <View style={styles.sectionContainer}>
+          <TextDisplay text="READER" style={[styles.sectionTitle, dynamicStyles.sectionTitle]} />
+          <View style={[styles.section, dynamicStyles.section]}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('ReaderSettings')}
+            >
+              <TextDisplay text="📖" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Reader Defaults" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Theme, font, size, spacing"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Danger Zone */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, styles.dangerTitle]}>Data</Text>
+        {/* Notifications Section */}
+        <View style={styles.sectionContainer}>
+          <TextDisplay text="NOTIFICATIONS" style={[styles.sectionTitle, dynamicStyles.sectionTitle]} />
+          <View style={[styles.section, dynamicStyles.section]}>
+            <View style={styles.row}>
+              <TextDisplay text="🔔" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Daily Reminders" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Get reminded to read and review"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <Switch
+                value={preferences.notificationsEnabled}
+                onValueChange={(value) => updatePreferences({ notificationsEnabled: value })}
+                trackColor={{ false: colors.background.tertiary, true: colors.primary[500] }}
+                thumbColor="#ffffff"
+              />
+            </View>
 
-          <Text style={styles.dangerButton}>Export All Data</Text>
-          <Text style={[styles.dangerButton, styles.destructive]}>Clear All Data</Text>
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('NotificationSettings')}
+            >
+              <TextDisplay text="⏰" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Notification Settings" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Schedule, sounds, badges"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Data Section */}
+        <View style={styles.sectionContainer}>
+          <TextDisplay text="DATA" style={[styles.sectionTitle, dynamicStyles.sectionTitle]} />
+          <View style={[styles.section, dynamicStyles.section]}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('DataManagement')}
+            >
+              <TextDisplay text="💾" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Data Management" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Export, import, clear data"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* About Section */}
+        <View style={styles.sectionContainer}>
+          <TextDisplay text="ABOUT" style={[styles.sectionTitle, dynamicStyles.sectionTitle]} />
+          <View style={[styles.section, dynamicStyles.section]}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => handleNavigate('About')}
+            >
+              <TextDisplay text="ℹ️" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="About Xenolexia" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Version, licenses, contact"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            <TouchableOpacity style={styles.row} onPress={() => {}}>
+              <TextDisplay text="⭐" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Rate Xenolexia" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Help us by leaving a review"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, dynamicStyles.divider]} />
+
+            <TouchableOpacity style={styles.row} onPress={() => {}}>
+              <TextDisplay text="📤" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Share Xenolexia" style={[styles.rowLabel, dynamicStyles.rowLabel]} />
+                <TextDisplay
+                  text="Tell your friends about us"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+              <TextDisplay text="›" style={[styles.rowChevron, dynamicStyles.rowIcon]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Reset Section */}
+        <View style={styles.sectionContainer}>
+          <View style={[styles.section, dynamicStyles.section]}>
+            <TouchableOpacity style={styles.row} onPress={handleResetSettings}>
+              <TextDisplay text="🔄" style={styles.rowIconEmoji} />
+              <View style={styles.rowContent}>
+                <TextDisplay text="Reset Settings" style={[styles.rowLabel, { color: '#f59e0b' }]} />
+                <TextDisplay
+                  text="Restore default settings"
+                  style={[styles.rowValue, dynamicStyles.rowValue]}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <TextDisplay
+            text="Xenolexia v1.0.0"
+            style={[styles.footerText, { color: colors.text.tertiary }]}
+          />
+          <TextDisplay
+            text="Made with 📚 for language learners"
+            style={[styles.footerText, { color: colors.text.tertiary }]}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Simple text display component
+function TextDisplay({ text, style }: { text: string; style?: any }) {
+  const { Text } = require('react-native');
+  return <Text style={style}>{text}</Text>;
+}
+
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
   backButton: {
-    color: '#0ea5e9',
-    fontSize: 16,
-    fontWeight: '500',
+    padding: 8,
+    width: 48,
+  },
+  backText: {
+    fontSize: 28,
+    fontWeight: '300',
   },
   container: {
-    backgroundColor: '#ffffff',
     flex: 1,
   },
   content: {
     flex: 1,
   },
-  dangerButton: {
-    color: '#0ea5e9',
-    fontSize: 16,
-    paddingVertical: 12,
+  divider: {
+    height: 1,
+    marginLeft: 56,
   },
-  dangerTitle: {
-    color: '#ef4444',
+  footer: {
+    alignItems: 'center',
+    paddingBottom: 40,
+    paddingTop: 24,
   },
-  destructive: {
-    color: '#ef4444',
+  footerText: {
+    fontSize: 13,
+    marginBottom: 4,
   },
   header: {
     alignItems: 'center',
-    borderBottomColor: '#e5e7eb',
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
-  placeholder: {
-    width: 50,
-  },
-  section: {
-    borderBottomColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 16,
-    textTransform: 'uppercase',
-  },
-  settingDescription: {
-    color: '#6b7280',
-    fontSize: 14,
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  settingHeader: {
+  row: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  settingItem: {
-    marginBottom: 20,
+  rowChevron: {
+    fontSize: 22,
+    fontWeight: '300',
   },
-  settingLabel: {
-    color: '#1f2937',
+  rowContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  rowIconEmoji: {
+    fontSize: 22,
+    width: 28,
+  },
+  rowLabel: {
     fontSize: 16,
     fontWeight: '500',
   },
-  settingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  rowValue: {
+    fontSize: 13,
+    marginTop: 2,
   },
-  settingTextContainer: {
-    flex: 1,
-    marginRight: 16,
-  },
-  settingValue: {
-    color: '#0ea5e9',
-    fontSize: 16,
+  rowValueBadge: {
+    fontSize: 15,
     fontWeight: '600',
   },
+  section: {
+    borderRadius: 12,
+    marginHorizontal: 16,
+    overflow: 'hidden',
+  },
+  sectionContainer: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginLeft: 32,
+  },
   title: {
-    color: '#1f2937',
     fontSize: 18,
     fontWeight: '600',
   },

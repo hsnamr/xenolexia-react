@@ -137,6 +137,13 @@ class VocabularyRepository {
   }
 
   /**
+   * Delete all vocabulary items
+   */
+  async deleteAll(): Promise<void> {
+    await databaseService.execute('DELETE FROM vocabulary');
+  }
+
+  /**
    * Get a vocabulary item by ID
    */
   async getById(itemId: string): Promise<VocabularyItem | null> {

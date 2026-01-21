@@ -188,6 +188,13 @@ class BookRepository {
   }
 
   /**
+   * Delete all books
+   */
+  async deleteAll(): Promise<void> {
+    await databaseService.execute('DELETE FROM books');
+  }
+
+  /**
    * Get a book by ID
    */
   async getById(bookId: string): Promise<Book | null> {

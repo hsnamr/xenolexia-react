@@ -51,6 +51,9 @@ interface LibraryState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
+
+  // Data management
+  clearLibrary: () => Promise<void>;
 }
 
 // ============================================================================
@@ -324,6 +327,26 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   clearError: () => {
     set({error: null});
+  },
+
+  // ============================================================================
+  // Data Management
+  // ============================================================================
+
+  clearLibrary: async () => {
+    set({isLoading: true});
+    try {
+      await bookRepository.deleteAll();
+      set({
+        books: [],
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Failed to clear library:', error);
+      set({isLoading: false});
+      throw error;
+    }
   },
 }));
 

@@ -156,6 +156,7 @@ export interface Chapter {
   index: number;
   content: string; // HTML or plain text
   wordCount: number;
+  href?: string; // Path to the chapter file in EPUB
 }
 
 export interface TableOfContentsItem {

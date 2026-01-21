@@ -95,15 +95,15 @@ interface Book {
 ---
 
 ### Phase 2: EPUB Parser Service (Weeks 3-4)
-**Status: 🔶 MOSTLY COMPLETED**
+**Status: ✅ COMPLETED**
 
 #### 2.1 Core Parsing
 - [x] Extract EPUB structure (spine, manifest, toc) - EPUBExtractor
 - [x] Parse table of contents (NCX for EPUB 2, NAV for EPUB 3) - TOCParser
 - [x] Extract metadata (title, author, description, cover) - MetadataExtractor
-- [ ] Parse chapter content to HTML/text
-- [ ] Handle embedded images and styles
-- [ ] Extract all text nodes for word replacement
+- [x] Parse chapter content to HTML/text - EPUBParser.extractChapters()
+- [x] Handle embedded images and styles - ChapterContentService + EPUBExtractor.resolveStylesheets()
+- [x] Extract all text nodes for word replacement - TextProcessingService.extractContent()
 
 **Architecture:**
 ```typescript
@@ -115,21 +115,36 @@ interface IBookParser {
   search(query: string): SearchResult[];
 }
 
-// EPUB-specific implementation (Partially Implemented)
+// EPUB-specific implementation (Fully Implemented)
 class EPUBParser implements IBookParser {
   // Uses JSZip for extraction
   // EPUBExtractor for ZIP/XML parsing
   // TOCParser for NCX/NAV parsing
   // MetadataExtractor for metadata
+  // resolveStylesheets() for CSS inlining
+}
+
+// TextProcessingService - Integrates tokenization and replacement
+class TextProcessingService {
+  processChapter(chapter, options): ProcessedContent;
+  extractContent(html): ExtractedContent;
+  // ... word lookup, caching, context extraction
 }
 ```
 
 #### 2.2 Text Processing Pipeline
-- [ ] Tokenize text into words
-- [ ] Preserve HTML structure around words
-- [ ] Handle punctuation correctly
-- [ ] Support hyphenated words
-- [ ] Maintain word positions for tap detection
+- [x] Tokenize text into words - Tokenizer.tokenize()
+- [x] Preserve HTML structure around words - Tokenizer.extractTextSegments()
+- [x] Handle punctuation correctly - Token.prefix/suffix
+- [x] Support hyphenated words - regex in Tokenizer
+- [x] Maintain word positions for tap detection - Token.startIndex/endIndex
+
+**Implemented Files:**
+- `TextProcessingService.ts` - Main integration service
+- `Tokenizer.ts` - HTML-aware tokenization
+- `WordReplacer.ts` - Position-based word replacement
+- `EPUBExtractor.ts` - CSS stylesheet resolution
+- `ChapterContentService.ts` - Image processing, styling
 
 ---
 

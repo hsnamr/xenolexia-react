@@ -451,6 +451,78 @@ export class EPUBExtractor {
   }
 
   /**
+   * Get all CSS stylesheets from the EPUB
+   */
+  async getAllStylesheets(manifest: Map<string, EPUBManifestItem>): Promise<Map<string, string>> {
+    const stylesheets = new Map<string, string>();
+
+    for (const [id, item] of manifest) {
+      if (item.mediaType === 'text/css' || item.href.endsWith('.css')) {
+        try {
+          const content = await this.getFile(item.href);
+          stylesheets.set(item.href, content);
+        } catch (error) {
+          console.warn(`Failed to load stylesheet ${item.href}:`, error);
+        }
+      }
+    }
+
+    return stylesheets;
+  }
+
+  /**
+   * Resolve stylesheet links in HTML content
+   */
+  async resolveStylesheets(
+    html: string,
+    manifest: Map<string, EPUBManifestItem>
+  ): Promise<string> {
+    // Find all linked stylesheets
+    const linkRegex = /<link[^>]*href=["']([^"']+\.css)["'][^>]*>/gi;
+    let match;
+    const stylesToInline: string[] = [];
+
+    while ((match = linkRegex.exec(html)) !== null) {
+      const href = match[1];
+      try {
+        const cssContent = await this.getFile(href);
+        stylesToInline.push(cssContent);
+      } catch (error) {
+        console.warn(`Failed to load linked stylesheet ${href}:`, error);
+      }
+    }
+
+    // Remove link tags
+    let modifiedHtml = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '');
+
+    // Add inline styles
+    if (stylesToInline.length > 0) {
+      const inlineStyle = `<style>${stylesToInline.join('\n')}</style>`;
+      // Insert before </head> or at the start
+      if (modifiedHtml.includes('</head>')) {
+        modifiedHtml = modifiedHtml.replace('</head>', `${inlineStyle}</head>`);
+      } else {
+        modifiedHtml = inlineStyle + modifiedHtml;
+      }
+    }
+
+    return modifiedHtml;
+  }
+
+  /**
+   * List all files in the EPUB
+   */
+  listFiles(): string[] {
+    if (!this.zip) return [];
+
+    const files: string[] = [];
+    this.zip.forEach((relativePath) => {
+      files.push(relativePath);
+    });
+    return files;
+  }
+
+  /**
    * Get the base path for relative references
    */
   getBasePath(): string {

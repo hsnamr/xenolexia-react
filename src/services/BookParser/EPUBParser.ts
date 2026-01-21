@@ -206,7 +206,13 @@ export class EPUBParser implements IBookParser {
       if (!manifestItem) continue;
 
       try {
-        const content = await this.extractor.getFile(manifestItem.href);
+        let content = await this.extractor.getFile(manifestItem.href);
+
+        // Resolve and inline stylesheets
+        content = await this.extractor.resolveStylesheets(
+          content,
+          this.epubPackage.manifest
+        );
 
         // Find title from TOC or generate one
         const tocEntry = flatToc.find(item => {
@@ -214,7 +220,7 @@ export class EPUBParser implements IBookParser {
           return tocHref === manifestItem.href;
         });
 
-        const title = tocEntry?.title || `Chapter ${chapters.length + 1}`;
+        const title = tocEntry?.title || this.extractTitleFromContent(content) || `Chapter ${chapters.length + 1}`;
 
         // Count words
         const wordCount = this.countWords(content);
@@ -225,6 +231,7 @@ export class EPUBParser implements IBookParser {
           index: chapters.length,
           content,
           wordCount,
+          href: manifestItem.href,
         });
       } catch (error) {
         console.warn(`Failed to load chapter ${manifestItem.href}:`, error);
@@ -232,6 +239,58 @@ export class EPUBParser implements IBookParser {
     }
 
     return chapters;
+  }
+
+  /**
+   * Extract title from HTML content
+   */
+  private extractTitleFromContent(html: string): string | null {
+    // Try <title> tag
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      return titleMatch[1].trim();
+    }
+
+    // Try first <h1> tag
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (h1Match) {
+      return h1Match[1].trim();
+    }
+
+    // Try first <h2> tag
+    const h2Match = html.match(/<h2[^>]*>([^<]+)<\/h2>/i);
+    if (h2Match) {
+      return h2Match[1].trim();
+    }
+
+    return null;
+  }
+
+  /**
+   * Get chapter content with resolved stylesheets and images
+   */
+  async getProcessedChapter(index: number): Promise<Chapter> {
+    const chapter = await this.getChapter(index);
+
+    // Content should already have stylesheets resolved from extractChapters
+    // But we can do additional processing if needed
+
+    return chapter;
+  }
+
+  /**
+   * Get all stylesheets from the EPUB
+   */
+  async getStylesheets(): Promise<Map<string, string>> {
+    if (!this.epubPackage) return new Map();
+    return this.extractor.getAllStylesheets(this.epubPackage.manifest);
+  }
+
+  /**
+   * List all files in the EPUB (for debugging)
+   */
+  listFiles(): string[] {
+    return this.extractor.listFiles();
   }
 
   /**

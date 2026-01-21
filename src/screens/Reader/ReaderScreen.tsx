@@ -2,60 +2,94 @@
  * Reader Screen - Main book reading experience with foreign word integration
  */
 
-import React, {useState, useCallback, useEffect} from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Modal,
-  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-import type {RootStackScreenProps} from '@types/navigation';
-import type {ForeignWordData, Chapter} from '@types/index';
-import {useLibraryStore} from '@stores/libraryStore';
-import {useReaderStore} from '@stores/readerStore';
-import {TranslationPopup} from '@components/reader/TranslationPopup';
-import {ReaderSettingsModal} from '@components/reader/ReaderSettingsModal';
-import {ChapterNavigator} from '@components/reader/ChapterNavigator';
+import type { RootStackScreenProps } from '@types/navigation';
+import type { ForeignWordData } from '@types/index';
+import { useLibraryStore } from '@stores/libraryStore';
+import {
+  useReaderStore,
+  selectHasNextChapter,
+  selectHasPreviousChapter,
+} from '@stores/readerStore';
+import { TranslationPopup } from '@components/reader/TranslationPopup';
+import { ReaderSettingsModal } from '@components/reader/ReaderSettingsModal';
+import { ChapterNavigator } from '@components/reader/ChapterNavigator';
+import { EPUBRenderer } from './components/EPUBRenderer';
 
 type ReaderScreenProps = RootStackScreenProps<'Reader'>;
+
+// ============================================================================
+// Reader Screen Component
+// ============================================================================
 
 export function ReaderScreen(): React.JSX.Element {
   const navigation = useNavigation();
   const route = useRoute<ReaderScreenProps['route']>();
-  const {bookId} = route.params;
+  const { bookId } = route.params;
 
-  const {getBook} = useLibraryStore();
+  // Store hooks
+  const { getBook, updateBookProgress } = useLibraryStore();
   const {
+    currentBook,
     currentChapter,
-    processedContent,
-    foreignWords,
+    processedHtml,
     settings,
+    isLoading,
+    isLoadingChapter,
+    error,
+    overallProgress,
+    scrollPosition,
     loadBook,
     goToNextChapter,
     goToPreviousChapter,
+    updateProgress,
+    updateScrollPosition,
+    closeBook,
   } = useReaderStore();
+
+  const hasNext = useReaderStore(selectHasNextChapter);
+  const hasPrevious = useReaderStore(selectHasPreviousChapter);
 
   const book = getBook(bookId);
 
+  // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [selectedWord, setSelectedWord] = useState<ForeignWordData | null>(null);
   const [showControls, setShowControls] = useState(true);
 
+  // Load book on mount
   useEffect(() => {
-    if (book) {
+    if (book && (!currentBook || currentBook.id !== book.id)) {
       loadBook(book);
     }
-  }, [book, loadBook]);
+  }, [book, currentBook, loadBook]);
 
-  const handleWordPress = useCallback((word: ForeignWordData) => {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Save progress before closing
+      if (currentBook) {
+        updateBookProgress(currentBook.id, overallProgress);
+      }
+      closeBook();
+    };
+  }, [currentBook, overallProgress, updateBookProgress, closeBook]);
+
+  // Handlers
+  const handleWordTap = useCallback((word: ForeignWordData) => {
     setSelectedWord(word);
+    setShowControls(false);
   }, []);
 
   const handleDismissPopup = useCallback(() => {
@@ -63,38 +97,108 @@ export function ReaderScreen(): React.JSX.Element {
   }, []);
 
   const handleToggleControls = useCallback(() => {
-    setShowControls(prev => !prev);
-  }, []);
+    if (!selectedWord) {
+      setShowControls((prev) => !prev);
+    }
+  }, [selectedWord]);
 
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
+  const handleProgressChange = useCallback(
+    (progress: number) => {
+      updateProgress(progress);
+    },
+    [updateProgress]
+  );
+
+  const handleContentReady = useCallback(
+    (scrollHeight: number) => {
+      // Restore scroll position if available
+      if (scrollPosition > 0) {
+        updateScrollPosition(scrollPosition);
+      }
+    },
+    [scrollPosition, updateScrollPosition]
+  );
+
+  // Get theme colors
+  const themeColors = getThemeColors(settings.theme);
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: themeColors.text }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => book && loadBook(book)}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Book not found
   if (!book) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Book not found</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: themeColors.text }]}>
+            Book not found
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleBack}>
+            <Text style={styles.retryButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+          <Text style={[styles.loadingText, { color: themeColors.text }]}>
+            Loading book...
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: settings.theme === 'dark' ? '#1a1a2e' : settings.theme === 'sepia' ? '#f4ecd8' : '#ffffff'}]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+      edges={['top']}>
       {/* Header Controls */}
       {showControls && (
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
           <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>←</Text>
+            <Text style={[styles.headerButtonText, { color: themeColors.text }]}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.bookTitle} numberOfLines={1}>
+            <Text
+              style={[styles.bookTitle, { color: themeColors.text }]}
+              numberOfLines={1}>
               {book.title}
             </Text>
-            <Text style={styles.chapterTitle} numberOfLines={1}>
+            <Text
+              style={[styles.chapterTitle, { color: themeColors.textMuted }]}
+              numberOfLines={1}>
               {currentChapter?.title || 'Loading...'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.headerButton}>
+          <TouchableOpacity
+            onPress={() => setShowSettings(true)}
+            style={styles.headerButton}>
             <Text style={styles.headerButtonText}>⚙️</Text>
           </TouchableOpacity>
         </View>
@@ -105,46 +209,68 @@ export function ReaderScreen(): React.JSX.Element {
         activeOpacity={1}
         onPress={handleToggleControls}
         style={styles.readerContainer}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.contentContainer,
-            {paddingHorizontal: settings.marginHorizontal},
-          ]}
-          showsVerticalScrollIndicator={false}>
-          {/* Render processed content with foreign words */}
-          <ReaderContent
-            content={processedContent}
-            foreignWords={foreignWords}
+        {isLoadingChapter ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={themeColors.accent} />
+          </View>
+        ) : processedHtml ? (
+          <EPUBRenderer
+            html={processedHtml}
             settings={settings}
-            onWordPress={handleWordPress}
+            onProgressChange={handleProgressChange}
+            onWordTap={handleWordTap}
+            onContentReady={handleContentReady}
+            initialScrollY={scrollPosition}
           />
-        </ScrollView>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>
+              No content available
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
 
       {/* Footer Controls */}
       {showControls && (
-        <View style={styles.footer}>
-          <TouchableOpacity onPress={goToPreviousChapter} style={styles.navButton}>
-            <Text style={styles.navButtonText}>‹ Previous</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowChapters(true)} style={styles.chapterButton}>
-            <Text style={styles.progressText}>
-              {book.progress.toFixed(0)}%
+        <View style={[styles.footer, { borderTopColor: themeColors.border }]}>
+          <TouchableOpacity
+            onPress={goToPreviousChapter}
+            style={[styles.navButton, !hasPrevious && styles.navButtonDisabled]}
+            disabled={!hasPrevious}>
+            <Text
+              style={[
+                styles.navButtonText,
+                { color: hasPrevious ? themeColors.accent : themeColors.textMuted },
+              ]}>
+              ‹ Previous
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={goToNextChapter} style={styles.navButton}>
-            <Text style={styles.navButtonText}>Next ›</Text>
+          <TouchableOpacity
+            onPress={() => setShowChapters(true)}
+            style={[styles.chapterButton, { backgroundColor: themeColors.cardBackground }]}>
+            <Text style={[styles.progressText, { color: themeColors.text }]}>
+              {overallProgress.toFixed(0)}%
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={goToNextChapter}
+            style={[styles.navButton, !hasNext && styles.navButtonDisabled]}
+            disabled={!hasNext}>
+            <Text
+              style={[
+                styles.navButtonText,
+                { color: hasNext ? themeColors.accent : themeColors.textMuted },
+              ]}>
+              Next ›
+            </Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Translation Popup */}
       {selectedWord && (
-        <TranslationPopup
-          word={selectedWord}
-          onDismiss={handleDismissPopup}
-        />
+        <TranslationPopup word={selectedWord} onDismiss={handleDismissPopup} />
       )}
 
       {/* Settings Modal */}
@@ -163,54 +289,54 @@ export function ReaderScreen(): React.JSX.Element {
   );
 }
 
-// Sub-component for rendering content with tappable foreign words
-interface ReaderContentProps {
-  content: string;
-  foreignWords: ForeignWordData[];
-  settings: any;
-  onWordPress: (word: ForeignWordData) => void;
+// ============================================================================
+// Theme Helper
+// ============================================================================
+
+interface ThemeColors {
+  background: string;
+  text: string;
+  textMuted: string;
+  accent: string;
+  border: string;
+  cardBackground: string;
 }
 
-function ReaderContent({
-  content,
-  foreignWords,
-  settings,
-  onWordPress,
-}: ReaderContentProps): React.JSX.Element {
-  // TODO: Implement proper content parsing with foreign word highlighting
-  // This is a placeholder that shows how the content would be rendered
-  
-  const textColor = settings.theme === 'dark' ? '#e5e7eb' : settings.theme === 'sepia' ? '#5c4b37' : '#1f2937';
-  const foreignColor = settings.theme === 'dark' ? '#818cf8' : '#6366f1';
-
-  return (
-    <Text
-      style={[
-        styles.contentText,
-        {
-          fontSize: settings.fontSize,
-          lineHeight: settings.fontSize * settings.lineHeight,
-          color: textColor,
-          fontFamily: settings.fontFamily,
-        },
-      ]}>
-      {/* Placeholder content - will be replaced with actual parsed content */}
-      Welcome to <Text style={[styles.foreignWord, {color: foreignColor}]} onPress={() => {}}>Xenolexia</Text>! 
-      {'\n\n'}
-      As you read, words in your target language will appear like <Text style={[styles.foreignWord, {color: foreignColor}]}>αυτό</Text> (this). 
-      Tap on them to reveal the original word.
-      {'\n\n'}
-      Your current settings:
-      {'\n'}• Language: {settings.targetLanguage || 'Greek'}
-      {'\n'}• Level: {settings.proficiencyLevel || 'Beginner'}
-      {'\n'}• Density: {Math.round((settings.wordDensity || 0.3) * 100)}%
-      {'\n\n'}
-      Import an EPUB book to start your language learning journey!
-    </Text>
-  );
+function getThemeColors(theme: 'light' | 'dark' | 'sepia'): ThemeColors {
+  switch (theme) {
+    case 'dark':
+      return {
+        background: '#1a1a2e',
+        text: '#e5e7eb',
+        textMuted: '#9ca3af',
+        accent: '#818cf8',
+        border: 'rgba(255,255,255,0.1)',
+        cardBackground: '#2d2d44',
+      };
+    case 'sepia':
+      return {
+        background: '#f4ecd8',
+        text: '#5c4b37',
+        textMuted: '#8b7355',
+        accent: '#9333ea',
+        border: 'rgba(0,0,0,0.1)',
+        cardBackground: '#e8dcc8',
+      };
+    default:
+      return {
+        background: '#ffffff',
+        text: '#1f2937',
+        textMuted: '#6b7280',
+        accent: '#6366f1',
+        border: 'rgba(0,0,0,0.1)',
+        cardBackground: '#f3f4f6',
+      };
+  }
 }
 
-const {width, height} = Dimensions.get('window');
+// ============================================================================
+// Styles
+// ============================================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -222,10 +348,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   headerButton: {
     padding: 8,
+    minWidth: 44,
+    alignItems: 'center',
   },
   headerButtonText: {
     fontSize: 24,
@@ -238,28 +365,52 @@ const styles = StyleSheet.create({
   bookTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
   },
   chapterTitle: {
     fontSize: 12,
-    color: '#6b7280',
     marginTop: 2,
   },
   readerContainer: {
     flex: 1,
   },
-  scrollView: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
   },
-  contentContainer: {
-    paddingVertical: 24,
+  loadingText: {
+    fontSize: 16,
   },
-  contentText: {
-    textAlign: 'left',
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 16,
   },
-  foreignWord: {
-    textDecorationLine: 'underline',
-    fontWeight: '500',
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
   },
   footer: {
     flexDirection: 'row',
@@ -268,31 +419,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
   },
   navButton: {
     padding: 8,
+    minWidth: 80,
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
   },
   navButtonText: {
     fontSize: 16,
-    color: '#0ea5e9',
     fontWeight: '500',
   },
   chapterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#f3f4f6',
     borderRadius: 20,
   },
   progressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#ef4444',
-    textAlign: 'center',
-    marginTop: 100,
   },
 });

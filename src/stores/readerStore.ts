@@ -1,42 +1,73 @@
 /**
- * Reader Store - Manages reading state and content processing
+ * Reader Store - Manages reading state, content loading, and progress tracking
  */
 
-import {create} from 'zustand';
-import type {Book, Chapter, ForeignWordData, ReaderSettings, ProcessedChapter} from '@types/index';
+import { create } from 'zustand';
+import type {
+  Book,
+  Chapter,
+  ForeignWordData,
+  ReaderSettings,
+  ProcessedChapter,
+  TableOfContentsItem,
+} from '@types/index';
+import { EPUBParser } from '@services/BookParser/EPUBParser';
+import {
+  ChapterContentService,
+  chapterContentService,
+} from '@services/BookParser/ChapterContentService';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface ReaderState {
   // Current book state
   currentBook: Book | null;
   chapters: Chapter[];
+  tableOfContents: TableOfContentsItem[];
   currentChapterIndex: number;
   currentChapter: Chapter | null;
-  
+
   // Processed content
-  processedContent: string;
+  processedHtml: string;
   foreignWords: ForeignWordData[];
-  
-  // Reader settings (local copy for the current session)
+
+  // Progress tracking
+  scrollPosition: number;
+  chapterProgress: number;
+  overallProgress: number;
+
+  // Reader settings (session copy)
   settings: ReaderSettings & {
     targetLanguage?: string;
     proficiencyLevel?: string;
     wordDensity?: number;
   };
-  
+
   // UI state
   isLoading: boolean;
+  isLoadingChapter: boolean;
   error: string | null;
+
+  // Internal references
+  parser: EPUBParser | null;
+  contentService: ChapterContentService;
 
   // Actions
   loadBook: (book: Book) => Promise<void>;
   goToChapter: (index: number) => Promise<void>;
-  goToNextChapter: () => void;
-  goToPreviousChapter: () => void;
+  goToNextChapter: () => Promise<void>;
+  goToPreviousChapter: () => Promise<void>;
   updateSettings: (settings: Partial<ReaderState['settings']>) => void;
-  updateProgress: (progress: number) => void;
-  processChapter: (chapter: Chapter) => Promise<ProcessedChapter>;
+  updateProgress: (chapterProgress: number) => void;
+  updateScrollPosition: (scrollY: number) => void;
   closeBook: () => void;
 }
+
+// ============================================================================
+// Default Settings
+// ============================================================================
 
 const defaultSettings: ReaderState['settings'] = {
   theme: 'light',
@@ -52,41 +83,50 @@ const defaultSettings: ReaderState['settings'] = {
   wordDensity: 0.3,
 };
 
+// ============================================================================
+// Reader Store
+// ============================================================================
+
 export const useReaderStore = create<ReaderState>((set, get) => ({
+  // Initial state
   currentBook: null,
   chapters: [],
+  tableOfContents: [],
   currentChapterIndex: 0,
   currentChapter: null,
-  processedContent: '',
+  processedHtml: '',
   foreignWords: [],
+  scrollPosition: 0,
+  chapterProgress: 0,
+  overallProgress: 0,
   settings: defaultSettings,
   isLoading: false,
+  isLoadingChapter: false,
   error: null,
+  parser: null,
+  contentService: chapterContentService,
 
+  /**
+   * Load a book and parse its content
+   */
   loadBook: async (book: Book) => {
-    set({isLoading: true, error: null, currentBook: book});
-    
+    set({ isLoading: true, error: null, currentBook: book });
+
     try {
-      // TODO: Parse book using BookParser service
-      // const parsedBook = await BookParserService.parse(book.filePath);
-      // set({
-      //   chapters: parsedBook.chapters,
-      //   isLoading: false,
-      // });
-      
-      // For now, set placeholder content
-      const placeholderChapter: Chapter = {
-        id: '1',
-        title: 'Chapter 1',
-        index: 0,
-        content: 'Welcome to your book! Import an EPUB to start reading.',
-        wordCount: 10,
-      };
-      
+      // Create parser instance
+      const parser = new EPUBParser();
+
+      // Parse the EPUB
+      const parsedBook = await parser.parse(book.filePath);
+
+      // Load the EPUB in content service for image extraction
+      await get().contentService.loadEpub(book.filePath);
+
+      // Update state with parsed data
       set({
-        chapters: [placeholderChapter],
-        currentChapter: placeholderChapter,
-        currentChapterIndex: 0,
+        parser,
+        chapters: parsedBook.chapters,
+        tableOfContents: parsedBook.tableOfContents,
         isLoading: false,
         settings: {
           ...get().settings,
@@ -95,10 +135,12 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
           wordDensity: book.wordDensity,
         },
       });
-      
-      // Process the first chapter
-      await get().goToChapter(0);
+
+      // Load the first chapter or resume from saved position
+      const startChapter = book.currentChapter || 0;
+      await get().goToChapter(startChapter);
     } catch (error) {
+      console.error('Failed to load book:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to load book',
         isLoading: false,
@@ -106,87 +148,145 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     }
   },
 
+  /**
+   * Navigate to a specific chapter
+   */
   goToChapter: async (index: number) => {
-    const {chapters} = get();
-    
+    const { chapters, settings, contentService } = get();
+
     if (index < 0 || index >= chapters.length) {
       return;
     }
-    
-    set({isLoading: true});
-    
+
+    set({ isLoadingChapter: true, scrollPosition: 0, chapterProgress: 0 });
+
     try {
       const chapter = chapters[index];
-      const processed = await get().processChapter(chapter);
-      
+
+      // Generate HTML with styles
+      const processedContent = await contentService.getChapterHtml(chapter, {
+        fontFamily: settings.fontFamily,
+        fontSize: settings.fontSize,
+        lineHeight: settings.lineHeight,
+        textAlign: settings.textAlign,
+        marginHorizontal: settings.marginHorizontal,
+        theme: settings.theme,
+        foreignWordColor: '#6366f1',
+      });
+
+      // Calculate overall progress
+      const overallProgress = ((index + 1) / chapters.length) * 100;
+
       set({
         currentChapterIndex: index,
         currentChapter: chapter,
-        processedContent: processed.processedContent,
-        foreignWords: processed.foreignWords,
-        isLoading: false,
+        processedHtml: processedContent.html,
+        foreignWords: [], // Will be populated by translation engine
+        isLoadingChapter: false,
+        overallProgress,
       });
     } catch (error) {
+      console.error('Failed to load chapter:', error);
       set({
         error: error instanceof Error ? error.message : 'Failed to load chapter',
-        isLoading: false,
+        isLoadingChapter: false,
       });
     }
   },
 
-  goToNextChapter: () => {
-    const {currentChapterIndex, chapters} = get();
+  /**
+   * Go to next chapter
+   */
+  goToNextChapter: async () => {
+    const { currentChapterIndex, chapters } = get();
     if (currentChapterIndex < chapters.length - 1) {
-      get().goToChapter(currentChapterIndex + 1);
+      await get().goToChapter(currentChapterIndex + 1);
     }
   },
 
-  goToPreviousChapter: () => {
-    const {currentChapterIndex} = get();
+  /**
+   * Go to previous chapter
+   */
+  goToPreviousChapter: async () => {
+    const { currentChapterIndex } = get();
     if (currentChapterIndex > 0) {
-      get().goToChapter(currentChapterIndex - 1);
+      await get().goToChapter(currentChapterIndex - 1);
     }
   },
 
-  updateSettings: (settings: Partial<ReaderState['settings']>) => {
-    set(state => ({
-      settings: {...state.settings, ...settings},
+  /**
+   * Update reader settings
+   */
+  updateSettings: (newSettings: Partial<ReaderState['settings']>) => {
+    set((state) => ({
+      settings: { ...state.settings, ...newSettings },
     }));
   },
 
-  updateProgress: (progress: number) => {
-    const {currentBook} = get();
-    if (currentBook) {
-      // TODO: Update progress in library store and database
-      set(state => ({
-        currentBook: state.currentBook ? {...state.currentBook, progress} : null,
-      }));
-    }
+  /**
+   * Update reading progress within current chapter
+   */
+  updateProgress: (chapterProgress: number) => {
+    const { currentChapterIndex, chapters } = get();
+
+    // Calculate overall book progress
+    const chapterWeight = 1 / chapters.length;
+    const overallProgress =
+      currentChapterIndex * chapterWeight * 100 +
+      chapterProgress * chapterWeight;
+
+    set({
+      chapterProgress,
+      overallProgress: Math.min(100, Math.max(0, overallProgress)),
+    });
   },
 
-  processChapter: async (chapter: Chapter): Promise<ProcessedChapter> => {
-    // TODO: Implement actual word replacement using TranslationEngine
-    // const processed = await TranslationEngine.processContent(
-    //   chapter.content,
-    //   get().settings
-    // );
-    
-    // Placeholder implementation
-    return {
-      ...chapter,
-      foreignWords: [],
-      processedContent: chapter.content,
-    };
+  /**
+   * Update scroll position for restoring later
+   */
+  updateScrollPosition: (scrollY: number) => {
+    set({ scrollPosition: scrollY });
   },
 
+  /**
+   * Close the current book and clean up
+   */
   closeBook: () => {
+    const { parser, contentService } = get();
+
+    // Clean up resources
+    parser?.dispose();
+    contentService.dispose();
+
     set({
       currentBook: null,
       chapters: [],
+      tableOfContents: [],
       currentChapterIndex: 0,
       currentChapter: null,
-      processedContent: '',
+      processedHtml: '',
       foreignWords: [],
+      scrollPosition: 0,
+      chapterProgress: 0,
+      overallProgress: 0,
+      parser: null,
+      error: null,
     });
   },
 }));
+
+// ============================================================================
+// Selectors
+// ============================================================================
+
+export const selectCurrentChapterTitle = (state: ReaderState) =>
+  state.currentChapter?.title || '';
+
+export const selectHasNextChapter = (state: ReaderState) =>
+  state.currentChapterIndex < state.chapters.length - 1;
+
+export const selectHasPreviousChapter = (state: ReaderState) =>
+  state.currentChapterIndex > 0;
+
+export const selectChapterCount = (state: ReaderState) =>
+  state.chapters.length;

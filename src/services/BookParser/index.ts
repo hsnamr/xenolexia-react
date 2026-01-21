@@ -6,6 +6,10 @@
 export {BookParserService} from './BookParserService';
 export {EPUBParser} from './EPUBParser';
 
+// Chapter content service
+export {ChapterContentService, chapterContentService} from './ChapterContentService';
+export type {ChapterStyles, ProcessedChapterContent} from './ChapterContentService';
+
 // Low-level utilities
 export {EPUBExtractor} from './EPUBExtractor';
 export type {

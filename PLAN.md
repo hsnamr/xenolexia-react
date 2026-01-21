@@ -49,17 +49,19 @@ This document outlines the complete development roadmap for Xenolexia, from init
 ---
 
 ### Phase 1: Library Screen (Weeks 2-3)
+**Status: ✅ COMPLETED**
 
 #### 1.1 Book Import
-- [ ] Implement document picker for file selection
-- [ ] Support drag-and-drop (if feasible)
-- [ ] Parse EPUB metadata (title, author, cover)
-- [ ] Store book files in app storage
-- [ ] Create database schema for books
+- [x] Implement document picker for file selection
+- [x] Support multiple file formats (EPUB, TXT, MOBI, FB2)
+- [x] Parse EPUB metadata (title, author, cover, TOC)
+- [x] Store book files in app storage
+- [x] Create database schema for books
+- [x] Import progress modal with status indicator
 
 **Technical Details:**
 ```typescript
-// Book entity structure
+// Book entity structure (Implemented)
 interface Book {
   id: string;
   title: string;
@@ -77,30 +79,35 @@ interface Book {
 ```
 
 #### 1.2 Library UI
-- [ ] Grid/List view toggle
-- [ ] Book cards with cover, title, progress
-- [ ] Search and filter functionality
-- [ ] Sort options (recent, title, author, progress)
-- [ ] Delete/edit book functionality
+- [x] Grid/List view toggle (ViewToggle component)
+- [x] Book cards with cover, title, progress (BookCard, BookCover)
+- [x] Search and filter functionality (SortFilterBar)
+- [x] Sort options (recent, title, author, progress)
+- [x] Delete/edit book functionality (BookContextMenu)
+- [x] Book detail screen (BookDetailScreen)
+- [x] List view item (BookListItem)
 
 #### 1.3 Collections (Stretch)
 - [ ] Create custom collections
 - [ ] Drag books into collections
-- [ ] Smart collections (currently reading, completed)
+- [x] Smart collections (currently reading, completed) - via store selectors
 
 ---
 
 ### Phase 2: EPUB Parser Service (Weeks 3-4)
+**Status: 🔶 MOSTLY COMPLETED**
 
 #### 2.1 Core Parsing
-- [ ] Extract EPUB structure (spine, manifest, toc)
+- [x] Extract EPUB structure (spine, manifest, toc) - EPUBExtractor
+- [x] Parse table of contents (NCX for EPUB 2, NAV for EPUB 3) - TOCParser
+- [x] Extract metadata (title, author, description, cover) - MetadataExtractor
 - [ ] Parse chapter content to HTML/text
 - [ ] Handle embedded images and styles
 - [ ] Extract all text nodes for word replacement
 
 **Architecture:**
 ```typescript
-// BookParser interface
+// BookParser interface (Implemented)
 interface IBookParser {
   parse(filePath: string): Promise<ParsedBook>;
   getChapter(index: number): Promise<Chapter>;
@@ -108,9 +115,12 @@ interface IBookParser {
   search(query: string): SearchResult[];
 }
 
-// EPUB-specific implementation
+// EPUB-specific implementation (Partially Implemented)
 class EPUBParser implements IBookParser {
-  // Uses epub.js internally
+  // Uses JSZip for extraction
+  // EPUBExtractor for ZIP/XML parsing
+  // TOCParser for NCX/NAV parsing
+  // MetadataExtractor for metadata
 }
 ```
 

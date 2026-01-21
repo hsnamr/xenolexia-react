@@ -227,17 +227,36 @@ xenolexia-react/
 - [x] Word saving to vocabulary lists
 - [x] Frequency-based word difficulty ranking
 
-### Phase 3: Smart Features (v0.3) 🔶 In Progress
+### Phase 3: Smart Features (v0.3) ✅
 - [x] SM-2 spaced repetition system (VocabularyRepository)
 - [x] Reading statistics (SessionRepository)
-- [ ] Smart word selection algorithm (context-aware)
-- [ ] Learning analytics dashboard
+- [x] Smart word selection algorithm (Tokenizer + WordReplacer)
+- [x] Learning analytics dashboard
 
-### Phase 4: Polish & Scale (v1.0)
-- [ ] Cloud sync
-- [ ] Additional book formats (FB2, MOBI)
-- [ ] Social features (share progress)
-- [ ] Premium features
+### Phase 4: Vocabulary Manager (v0.4) ✅
+- [x] Vocabulary screen with search and filters
+- [x] Flashcard review with SM-2 grading
+- [x] Export to CSV, Anki, JSON
+- [x] Word detail modal with editing
+
+### Phase 5: Settings & Onboarding (v0.5) ✅
+- [x] 6-step onboarding flow (28 languages)
+- [x] Comprehensive settings screens
+- [x] Data management (export, import, clear)
+- [x] About and legal screens
+
+### Phase 6: Polish & Testing (v0.6) ✅
+- [x] Unit tests for services and stores
+- [x] Component tests
+- [x] Error boundary and fallback UI
+- [x] Performance utilities
+
+### Phase 7: Release (v1.0) 🔶 In Progress
+- [x] App store metadata
+- [x] CI/CD pipelines (GitHub Actions)
+- [x] Privacy policy and terms
+- [ ] App icons and screenshots
+- [ ] Beta testing
 
 ---
 

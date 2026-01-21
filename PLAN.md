@@ -236,7 +236,7 @@ const processed = await translationEngine.processContent(chapterHtml);
 ---
 
 ### Phase 5: Vocabulary Manager (Weeks 8-10)
-**Status: 🔶 PARTIALLY COMPLETED**
+**Status: ✅ COMPLETED**
 
 #### 5.1 Word Storage
 - [x] Save words from reader to vocabulary (vocabularyStore + VocabularyRepository)
@@ -246,20 +246,34 @@ const processed = await translationEngine.processContent(chapterHtml);
 - [x] Mark words as "learned" (status field)
 
 #### 5.2 Vocabulary Screen
-- [ ] List all saved words (UI pending)
-- [x] Filter by book, date, status (VocabularyRepository)
-- [x] Search vocabulary (VocabularyRepository.search)
-- [ ] Edit/delete words (UI pending)
-- [ ] Export vocabulary (CSV, Anki)
+- [x] List all saved words (VocabularyScreen with VocabularyCard)
+- [x] Filter by book, date, status (VocabularyRepository + UI filters)
+- [x] Search vocabulary (VocabularyRepository.search + SearchInput)
+- [x] Edit/delete words (WordDetailModal)
+- [x] Export vocabulary (ExportService - CSV, Anki, JSON)
+- [x] Stats header with due count (VocabularyStatsHeader)
 
 #### 5.3 Spaced Repetition System (SRS)
 - [x] Implement SM-2 algorithm (VocabularyRepository.recordReview)
 - [x] Schedule word reviews (getDueForReview)
-- [ ] Review mode UI:
-  - Show foreign word
-  - User attempts recall
-  - Reveal and self-grade
-- [ ] Track review statistics
+- [x] Review mode UI (ReviewScreen):
+  - Show foreign word (FlashCard front)
+  - User attempts recall (tap to flip)
+  - Reveal and self-grade (GradingButtons)
+- [x] Track review statistics (ReviewSessionSummary + statisticsStore)
+
+**Implemented Components:**
+- `VocabularyScreen.tsx` - Main vocabulary list with search, filters, stats
+- `VocabularyCard.tsx` - Animated reveal card for saved words
+- `WordDetailModal.tsx` - Full word info with edit/delete
+- `ReviewScreen.tsx` - Flashcard review session
+- `FlashCard.tsx` - Animated flip card
+- `GradingButtons.tsx` - SM-2 self-grading (Again/Hard/Good/Easy)
+- `ReviewProgress.tsx` - Session progress bar
+- `ReviewSessionSummary.tsx` - End-of-session stats
+- `VocabularyStats.tsx` - Stats overview + header
+- `ExportModal.tsx` - Export format selection
+- `ExportService.ts` - CSV, Anki TSV, JSON export
 
 ---
 

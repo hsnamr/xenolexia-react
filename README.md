@@ -2,7 +2,7 @@
 
 > *Learn languages through the stories you love*
 
-**Xenolexia** is a React Native e-book reader that revolutionizes language learning by seamlessly blending foreign vocabulary into books you read in your native language. Instead of drilling vocabulary in isolation, you encounter new words in rich, familiar contexts—making acquisition natural and memorable.
+**Xenolexia** is a React Native e-book reader that revolutionizes language learning by seamlessly blending foreign vocabulary into books you read in your native language. Instead of drilling vocabulary in isolation, you encounter new words in rich, familiar contexts; making acquisition natural and memorable.
 
 ---
 
@@ -20,7 +20,7 @@ Imagine reading your favorite novel in English while learning Spanish, French, G
 
 *Tap "Entscheidung" → reveals "decision"*
 
-This contextual immersion mimics how we naturally acquire language—through meaningful exposure rather than rote memorization.
+This contextual immersion mimics how we naturally acquire language through meaningful exposure rather than rote memorization.
 
 ---
 

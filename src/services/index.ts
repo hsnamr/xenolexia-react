@@ -93,3 +93,6 @@ export type {
   ReaderStyleConfig,
   ThemeColors,
 } from './ReaderStyleService';
+
+export { exportService } from './ExportService';
+export type { ExportFormat, ExportOptions, ExportResult } from './ExportService';

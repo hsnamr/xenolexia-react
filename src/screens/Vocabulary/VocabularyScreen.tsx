@@ -16,6 +16,8 @@ import type {VocabularyItem, RootStackParamList} from '@/types';
 import {useVocabularyStore} from '@stores/vocabularyStore';
 import {VocabularyCard} from '@components/vocabulary/VocabularyCard';
 import {EmptyVocabulary} from '@components/vocabulary/EmptyVocabulary';
+import {VocabularyStatsHeader} from '@components/vocabulary/VocabularyStats';
+import {ExportModal} from '@components/vocabulary/ExportModal';
 import {ScreenHeader, LoadingList, EmptySearchResults} from '@components/common';
 import {Text, SearchInput, Button} from '@components/ui';
 
@@ -38,11 +40,12 @@ const FILTER_OPTIONS: FilterOption[] = [
 export function VocabularyScreen(): React.JSX.Element {
   const navigation = useNavigation<VocabularyNavigationProp>();
   const colors = useColors();
-  const {vocabulary, isLoading, refreshVocabulary} = useVocabularyStore();
+  const {vocabulary, isLoading, refreshVocabulary, getDueCount} = useVocabularyStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Filter and search vocabulary
   const filteredVocabulary = useMemo(() => {
@@ -68,6 +71,21 @@ export function VocabularyScreen(): React.JSX.Element {
       {} as Record<string, number>
     );
   }, [vocabulary]);
+
+  // Get due count for review
+  const dueCount = useMemo(() => {
+    if (typeof getDueCount === 'function') {
+      return getDueCount();
+    }
+    // Fallback: count items that are due for review
+    const now = new Date();
+    return vocabulary.filter(item => {
+      if (!item.lastReviewedAt || item.interval === 0) return true;
+      const nextReview = new Date(item.lastReviewedAt);
+      nextReview.setDate(nextReview.getDate() + item.interval);
+      return nextReview <= now;
+    }).length;
+  }, [vocabulary, getDueCount]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -132,8 +150,23 @@ export function VocabularyScreen(): React.JSX.Element {
     );
   };
 
+  const handleExport = useCallback(() => {
+    setShowExportModal(true);
+  }, []);
+
   const renderHeader = () => (
     <View style={styles.headerContent}>
+      {/* Stats Header with Review & Export buttons */}
+      {vocabulary.length > 0 && (
+        <VocabularyStatsHeader
+          total={vocabulary.length}
+          dueCount={dueCount}
+          learnedCount={statusCounts.learned || 0}
+          onStartReview={handleStartQuiz}
+          onExport={handleExport}
+        />
+      )}
+
       {/* Search */}
       <SearchInput
         value={searchQuery}
@@ -146,20 +179,6 @@ export function VocabularyScreen(): React.JSX.Element {
       <View style={styles.filterContainer}>
         {FILTER_OPTIONS.map(renderFilterButton)}
       </View>
-
-      {/* Quiz button */}
-      {vocabulary.length > 0 && (
-        <View style={styles.quizButtonContainer}>
-          <Button
-            variant="secondary"
-            size="md"
-            leftIcon={<Text variant="bodyMedium">🧠</Text>}
-            onPress={handleStartQuiz}
-          >
-            Practice Quiz
-          </Button>
-        </View>
-      )}
     </View>
   );
 
@@ -206,6 +225,13 @@ export function VocabularyScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Export Modal */}
+      <ExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        vocabulary={vocabulary}
+      />
     </SafeAreaView>
   );
 }
@@ -245,11 +271,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[8],
     paddingHorizontal: spacing[5],
   },
-  quizButtonContainer: {
-    alignItems: 'flex-start',
-    marginTop: spacing[4],
-  },
   searchInput: {
     marginBottom: 0,
+    marginTop: spacing[3],
   },
 });

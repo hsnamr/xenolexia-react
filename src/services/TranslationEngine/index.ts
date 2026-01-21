@@ -1,12 +1,55 @@
 /**
- * Translation Engine - Core word replacement logic
+ * Translation Engine - Core word replacement and translation logic
+ *
+ * Supports:
+ * - Any language pair via free translation APIs
+ * - Frequency-based proficiency levels
+ * - Offline caching
+ * - Multiple translation providers
  */
 
-// Main engine and matcher
+// Main engine
 export { TranslationEngine } from './TranslationEngine';
+
+// Word matching (legacy, uses bundled data)
 export { WordMatcher } from './WordMatcher';
 
-// Word database
+// Translation API Service (multiple providers)
+export {
+  TranslationAPIService,
+  translationAPI,
+} from './TranslationAPIService';
+export type {
+  TranslationProvider,
+  TranslationResult,
+  TranslationAPIConfig,
+  BulkTranslationResult,
+} from './TranslationAPIService';
+
+// Frequency List Service
+export {
+  FrequencyListService,
+  frequencyListService,
+  PROFICIENCY_THRESHOLDS,
+} from './FrequencyListService';
+export type {
+  FrequencyWord,
+  FrequencyList,
+  FrequencyListStats,
+} from './FrequencyListService';
+
+// Dynamic Word Database (any language pair)
+export {
+  DynamicWordDatabase,
+  dynamicWordDatabase,
+} from './DynamicWordDatabase';
+export type {
+  DynamicWordEntry,
+  WordLookupResult,
+  DatabaseStats,
+} from './DynamicWordDatabase';
+
+// Legacy Word Database (bundled EN-EL data)
 export {
   WordDatabaseService,
   wordDatabase,

@@ -134,60 +134,52 @@ class EPUBParser implements IBookParser {
 ---
 
 ### Phase 3: Translation Engine (Weeks 4-6) ⭐ CORE FEATURE
+**Status: 🔶 IN PROGRESS**
 
 #### 3.1 Word Database Setup
-- [ ] Import frequency-ranked word lists per language
-- [ ] Map words to proficiency levels:
+- [x] Import frequency-ranked word lists per language (FrequencyListService)
+- [x] Map words to proficiency levels:
   - **Beginner (A1-A2)**: Top 500 most common words
   - **Intermediate (B1-B2)**: Words ranked 501-2000
   - **Advanced (C1-C2)**: Words ranked 2001-5000+
-- [ ] Create translation pairs database
+- [x] Create translation pairs database (DynamicWordDatabase)
+- [x] Multi-provider translation API (LibreTranslate, MyMemory, Lingva)
+- [x] Support 28+ languages with metadata
 
-**Data Structure:**
+**Implementation:**
 ```typescript
-interface WordEntry {
-  id: string;
-  sourceWord: string;      // "house"
-  targetWord: string;      // "σπίτι"
-  sourceLang: Language;
-  targetLang: Language;
-  proficiencyLevel: 'beginner' | 'intermediate' | 'advanced';
-  frequencyRank: number;
-  partOfSpeech: POS;
-  variants: string[];      // ["houses", "house's"]
-}
+// TranslationAPIService - Multiple free translation providers
+const result = await translationAPI.translate('house', 'en', 'es');
+// { translatedText: 'casa', provider: 'libretranslate', ... }
+
+// FrequencyListService - Word frequency from open corpora
+const rank = await frequencyListService.getWordRank('en', 'house');
+// Returns rank (1-5000+) used for proficiency level
+
+// DynamicWordDatabase - Combines API + frequency for any language pair
+const entry = await dynamicWordDatabase.lookupWord('hello', 'en', 'fr');
+// { sourceWord: 'hello', targetWord: 'bonjour', proficiencyLevel: 'beginner', ... }
 ```
 
 #### 3.2 Word Replacement Algorithm
-- [ ] Identify replaceable words in text
-- [ ] Match words accounting for:
+- [x] Identify replaceable words in text (TranslationEngine.tokenize)
+- [x] Match words accounting for:
   - Case sensitivity
-  - Plural forms
+  - Plural forms (variants support)
   - Verb conjugations (basic)
-  - Common contractions
-- [ ] Respect density setting (% of words to replace)
+- [x] Respect density setting (% of words to replace)
 - [ ] Avoid replacing within quotes, names, technical terms
 - [ ] Ensure grammatical markers remain (articles stay English)
 
-**Algorithm Pseudocode:**
-```
-function replaceWords(text, settings):
-  words = tokenize(text)
-  replaceable = words.filter(w => 
-    dictionary.has(w) && 
-    dictionary.get(w).level <= settings.proficiency
-  )
-  
-  toReplace = selectByDensity(replaceable, settings.density)
-  
-  for word in toReplace:
-    if shouldReplace(word, context):
-      mark as foreign word with translation data
-  
-  return reconstructText(words)
+**Algorithm (Implemented in TranslationEngine.ts):**
+```typescript
+// Process content and replace words based on settings
+const processed = await translationEngine.processContent(chapterHtml);
+// Returns: { content: htmlWithForeignWords, foreignWords: [...], stats: {...} }
 ```
 
 #### 3.3 Context-Aware Selection
+- [x] Random selection based on density setting
 - [ ] Prefer replacing nouns and verbs (high meaning density)
 - [ ] Avoid replacing words in ambiguous contexts
 - [ ] Consider sentence structure
@@ -197,50 +189,43 @@ function replaceWords(text, settings):
 ---
 
 ### Phase 4: Reader Screen (Weeks 6-8)
+**Status: 🔶 IN PROGRESS**
 
 #### 4.1 Basic Reader
-- [ ] Render processed book content
-- [ ] Implement pagination or continuous scroll
-- [ ] Chapter navigation
-- [ ] Progress tracking (current location)
-- [ ] Save reading position automatically
+- [x] Render processed book content (WebView-based EPUBRenderer)
+- [x] Implement continuous scroll with progress tracking
+- [x] Chapter navigation (prev/next + chapter list)
+- [x] Progress tracking (scroll position + chapter)
+- [x] Save reading position automatically
 
 #### 4.2 Reader Customization
-- [ ] Font selection (Serif, Sans-serif, Dyslexic-friendly)
-- [ ] Font size adjustment
-- [ ] Line spacing control
-- [ ] Margin adjustment
-- [ ] Theme selection (Light, Dark, Sepia, Custom)
+- [x] Font selection (Serif, Sans-serif, Dyslexic-friendly - 5 options)
+- [x] Font size adjustment (12-32pt slider)
+- [x] Line spacing control (1.0-2.5x slider)
+- [x] Margin adjustment (8-56px slider)
+- [x] Theme selection (Light, Dark, Sepia)
 - [ ] Brightness control
 
 #### 4.3 Foreign Word Interaction ⭐
-- [ ] Style foreign words distinctly (underline, color)
-- [ ] Tap detection on foreign words
-- [ ] Translation popup component:
-  - Original word
-  - Phonetic pronunciation (optional)
-  - Save to vocabulary button
-  - "I knew this" button
-- [ ] Long-press for more options
+- [x] Style foreign words distinctly (underline, color via CSS)
+- [x] Tap detection on foreign words (WebView postMessage)
+- [x] Translation popup component:
+  - Original word ✅
+  - Phonetic pronunciation ✅
+  - Save to vocabulary button ✅
+  - "I knew this" button ✅
+- [x] Long-press for more options (implemented in WebView)
 
-**UI Component:**
-```typescript
-interface TranslationPopup {
-  foreignWord: string;
-  originalWord: string;
-  pronunciation?: string;
-  partOfSpeech: string;
-  exampleSentence?: string;
-  onSave: () => void;
-  onKnew: () => void;
-  onDismiss: () => void;
-}
-```
+**Implemented Components:**
+- `EPUBRenderer.tsx` - WebView-based content renderer
+- `ChapterContentService.ts` - CSS injection and JS for tap handling
+- `ReaderSettingsModal.tsx` - Two-tab settings (Appearance/Reading)
+- `TranslationPopup.tsx` - Word reveal modal
 
 #### 4.4 Reading Statistics
-- [ ] Track time spent reading
-- [ ] Count pages/chapters read
-- [ ] Track words revealed vs. known
+- [x] Track time spent reading (via ReadingSession)
+- [x] Count chapters read
+- [x] Track words revealed vs. saved (statisticsStore)
 - [ ] Session summary on close
 
 ---
@@ -508,10 +493,36 @@ CREATE TABLE word_list (
 
 ## 📝 Notes
 
-- Start with English → Greek as primary pair (personal motivation)
+- ~~Start with English → Greek as primary pair~~ → **Now supports 28+ language pairs**
+- Uses free translation APIs (LibreTranslate, MyMemory, Lingva) for any-to-any translation
+- FrequencyListService fetches open source word frequency lists for proficiency ranking
 - Keep MVP scope tight—resist feature creep
 - Prioritize reading experience over learning features initially
 - Get real user feedback early and often
+
+---
+
+## 🌍 Supported Languages (28+)
+
+| Language | Code | Flag | RTL |
+|----------|------|------|-----|
+| English | en | 🇬🇧 | - |
+| Spanish | es | 🇪🇸 | - |
+| French | fr | 🇫🇷 | - |
+| German | de | 🇩🇪 | - |
+| Italian | it | 🇮🇹 | - |
+| Portuguese | pt | 🇵🇹 | - |
+| Russian | ru | 🇷🇺 | - |
+| Greek | el | 🇬🇷 | - |
+| Dutch | nl | 🇳🇱 | - |
+| Polish | pl | 🇵🇱 | - |
+| Turkish | tr | 🇹🇷 | - |
+| Japanese | ja | 🇯🇵 | - |
+| Chinese | zh | 🇨🇳 | - |
+| Korean | ko | 🇰🇷 | - |
+| Arabic | ar | 🇵🇸 | ✅ |
+| Hebrew | he | 🇮🇱 | ✅ |
+| + 12 more... | | | |
 
 ---
 

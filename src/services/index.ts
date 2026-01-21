@@ -5,8 +5,41 @@
 export {BookParserService, EPUBParser} from './BookParser';
 export type {IBookParser} from './BookParser';
 
+// Translation Engine (core)
 export {TranslationEngine, WordMatcher} from './TranslationEngine';
 export type {TranslationOptions, ProcessedText} from './TranslationEngine';
+
+// Translation API Service (multi-provider)
+export {
+  TranslationAPIService,
+  translationAPI,
+} from './TranslationEngine';
+export type {
+  TranslationProvider,
+  TranslationResult,
+  BulkTranslationResult,
+} from './TranslationEngine';
+
+// Frequency List Service
+export {
+  FrequencyListService,
+  frequencyListService,
+  PROFICIENCY_THRESHOLDS,
+} from './TranslationEngine';
+export type {
+  FrequencyWord,
+  FrequencyList,
+} from './TranslationEngine';
+
+// Dynamic Word Database (any language pair)
+export {
+  DynamicWordDatabase,
+  dynamicWordDatabase,
+} from './TranslationEngine';
+export type {
+  DynamicWordEntry,
+  WordLookupResult,
+} from './TranslationEngine';
 
 export {StorageService, DatabaseSchema} from './StorageService';
 

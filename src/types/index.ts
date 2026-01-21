@@ -18,7 +18,23 @@ export type Language =
   | 'ja' // Japanese
   | 'zh' // Chinese
   | 'ko' // Korean
-  | 'ar'; // Arabic
+  | 'ar' // Arabic
+  | 'nl' // Dutch
+  | 'pl' // Polish
+  | 'tr' // Turkish
+  | 'sv' // Swedish
+  | 'da' // Danish
+  | 'fi' // Finnish
+  | 'no' // Norwegian
+  | 'cs' // Czech
+  | 'hu' // Hungarian
+  | 'ro' // Romanian
+  | 'uk' // Ukrainian
+  | 'he' // Hebrew
+  | 'hi' // Hindi
+  | 'th' // Thai
+  | 'vi' // Vietnamese
+  | 'id'; // Indonesian
 
 export type ProficiencyLevel = 'beginner' | 'intermediate' | 'advanced';
 
@@ -27,6 +43,65 @@ export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export interface LanguagePair {
   sourceLanguage: Language;
   targetLanguage: Language;
+}
+
+/**
+ * Language metadata for display purposes
+ */
+export interface LanguageInfo {
+  code: Language;
+  name: string;
+  nativeName: string;
+  flag?: string; // Emoji flag
+  rtl?: boolean; // Right-to-left language
+}
+
+/**
+ * All supported languages with metadata
+ */
+export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
+  { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
+  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', flag: '🇳🇱' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
+  { code: 'sv', name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk', flag: '🇩🇰' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi', flag: '🇫🇮' },
+  { code: 'no', name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴' },
+  { code: 'cs', name: 'Czech', nativeName: 'Čeština', flag: '🇨🇿' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar', flag: '🇭🇺' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Română', flag: '🇷🇴' },
+  { code: 'uk', name: 'Ukrainian', nativeName: 'Українська', flag: '🇺🇦' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어', flag: '🇰🇷' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇵🇸', rtl: true },
+  { code: 'he', name: 'Hebrew', nativeName: 'עברית', flag: '🇮🇱', rtl: true },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'th', name: 'Thai', nativeName: 'ไทย', flag: '🇹🇭' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', flag: '🇮🇩' },
+];
+
+/**
+ * Get language info by code
+ */
+export function getLanguageInfo(code: Language): LanguageInfo | undefined {
+  return SUPPORTED_LANGUAGES.find(lang => lang.code === code);
+}
+
+/**
+ * Get language name by code
+ */
+export function getLanguageName(code: Language): string {
+  return getLanguageInfo(code)?.name || code.toUpperCase();
 }
 
 // ============================================================================

@@ -8,12 +8,17 @@
 
 ## 🎯 The Concept
 
-Imagine reading your favorite novel in English while learning Greek. As you read, words matching your proficiency level appear in Greek instead of English. You understand them from context, and if you need help, a simple tap reveals the original word.
+Imagine reading your favorite novel in English while learning Spanish, French, German, Japanese, or any of **28+ supported languages**. As you read, words matching your proficiency level appear in your target language instead of English. You understand them from context, and if you need help, a simple tap reveals the original word.
 
-**Example at Beginner Level:**
-> "She walked into the σπίτι and set down her keys."
+**Example at Beginner Level (English → Spanish):**
+> "She walked into the casa and set down her keys."
 
-*Tap "σπίτι" → reveals "house"*
+*Tap "casa" → reveals "house"*
+
+**Example at Intermediate Level (English → German):**
+> "The Entscheidung was difficult to make."
+
+*Tap "Entscheidung" → reveals "decision"*
 
 This contextual immersion mimics how we naturally acquire language—through meaningful exposure rather than rote memorization.
 
@@ -28,14 +33,17 @@ This contextual immersion mimics how we naturally acquire language—through mea
 - 🔍 **Search**: Full-text search within books
 
 ### Language Learning Engine
-- 🌐 **Multiple Language Pairs**: English ↔ Greek, Spanish, French, German, Italian, Portuguese, and more
+- 🌐 **28+ Language Pairs**: Any-to-any translation via free APIs (LibreTranslate, MyMemory, Lingva)
+  - European: English, Spanish, French, German, Italian, Portuguese, Dutch, Polish, Russian, Greek, Swedish, Norwegian, Danish, Finnish, Czech, Hungarian, Romanian, Ukrainian, Turkish
+  - Asian: Japanese, Chinese, Korean, Thai, Vietnamese, Indonesian, Hindi
+  - Middle Eastern: Arabic, Hebrew
 - 📊 **Proficiency Levels**: Beginner, Intermediate, Advanced (A1-C2 CEFR mapping)
-- 🎚️ **Adjustable Density**: Control how many words appear in the target language (10%-90%)
-- 🧠 **Smart Word Selection**: AI-powered selection based on:
-  - Word frequency rankings
-  - Context clarity
-  - Part of speech
-  - User's learning history
+- 🎚️ **Adjustable Density**: Control how many words appear in the target language (5%-100%)
+- 🧠 **Smart Word Selection**: Frequency-based selection using open source word lists:
+  - Beginner (A1-A2): Top 500 most common words
+  - Intermediate (B1-B2): Words 501-2000
+  - Advanced (C1-C2): Words 2001-5000+
+- 📶 **Offline Support**: Translations cached locally in SQLite
 
 ### Vocabulary Building
 - 💡 **Tap-to-Reveal**: Instant translation popup on tap
@@ -158,37 +166,47 @@ ANALYTICS_ENABLED=false
 ## 📁 Project Structure
 
 ```
-xenolexia/
+xenolexia-react/
 ├── src/
 │   ├── app/                    # App entry and configuration
 │   ├── components/             # Reusable UI components
-│   │   ├── common/            # Buttons, inputs, modals
-│   │   ├── reader/            # Reader-specific components
-│   │   └── vocabulary/        # Vocabulary-specific components
+│   │   ├── common/            # EmptyState, LoadingState, ScreenHeader
+│   │   ├── library/           # BookCard, BookCover, ImportBookButton
+│   │   ├── reader/            # EPUBRenderer, TranslationPopup, ChapterNavigator
+│   │   ├── settings/          # SettingsSlider, SettingsSelect
+│   │   ├── ui/                # Text, Button, Card, Input, ThemeSwitcher
+│   │   └── vocabulary/        # VocabularyCard, EmptyVocabulary
 │   ├── screens/               # Screen components
-│   │   ├── Library/
-│   │   ├── Reader/
-│   │   ├── Vocabulary/
-│   │   ├── Settings/
-│   │   └── Onboarding/
+│   │   ├── Library/           # Book grid/list view
+│   │   ├── Reader/            # WebView-based EPUB reader
+│   │   ├── Vocabulary/        # Word lists and review
+│   │   ├── Statistics/        # Reading analytics
+│   │   ├── Settings/          # App configuration
+│   │   ├── Profile/           # User settings
+│   │   ├── BookDetail/        # Book info and actions
+│   │   └── Onboarding/        # First-time setup
 │   ├── services/              # Business logic
-│   │   ├── BookParser/        # EPUB, FB2, MOBI parsing
-│   │   ├── TranslationEngine/ # Word replacement logic
-│   │   ├── VocabularyManager/ # SRS and word tracking
-│   │   └── StorageService/    # Database operations
-│   ├── stores/                # Zustand stores
-│   ├── hooks/                 # Custom React hooks
-│   ├── utils/                 # Helper functions
-│   ├── types/                 # TypeScript definitions
-│   ├── constants/             # App constants
-│   ├── assets/                # Fonts, images, word lists
-│   │   └── wordlists/         # Frequency-ranked word lists
-│   └── navigation/            # Navigation configuration
-├── ios/                       # iOS native code
-├── android/                   # Android native code
-├── __tests__/                 # Test files
-├── docs/                      # Documentation
-└── scripts/                   # Build and utility scripts
+│   │   ├── BookParser/        # EPUB parsing (EPUBExtractor, TOCParser, MetadataExtractor)
+│   │   ├── TranslationEngine/ # Multi-language translation
+│   │   │   ├── TranslationAPIService.ts  # LibreTranslate, MyMemory, Lingva
+│   │   │   ├── FrequencyListService.ts   # Word frequency rankings
+│   │   │   ├── DynamicWordDatabase.ts    # Any language pair support
+│   │   │   └── TranslationEngine.ts      # Word replacement algorithm
+│   │   ├── ImageService/      # Cover extraction and caching
+│   │   ├── ImportService/     # Book file import
+│   │   └── StorageService/    # SQLite database
+│   │       └── repositories/  # BookRepository, VocabularyRepository, SessionRepository
+│   ├── stores/                # Zustand stores (library, reader, vocabulary, statistics)
+│   ├── data/                  # Bundled word lists (EN-EL as fallback)
+│   ├── hooks/                 # useAsync, useDebounce
+│   ├── theme/                 # Light/Dark/Sepia themes, design tokens
+│   ├── types/                 # TypeScript definitions (28 languages)
+│   └── navigation/            # React Navigation config
+├── __tests__/                 # Jest test files
+├── PLAN.md                    # Development roadmap
+├── WEEK1_PLAN.md             # Week 1 daily breakdown
+├── WEEK2_PLAN.md             # Week 2 daily breakdown
+└── WEEK3_PLAN.md             # Week 3 daily breakdown
 ```
 
 ---
@@ -196,27 +214,28 @@ xenolexia/
 ## 🗺️ Roadmap
 
 ### Phase 1: MVP (v0.1) - Core Reading ✅
-- [ ] EPUB file parsing and rendering
-- [ ] Basic reader with customization
-- [ ] Single language pair (English → Greek)
-- [ ] Beginner vocabulary replacement
-- [ ] Tap-to-reveal functionality
+- [x] EPUB file parsing and rendering
+- [x] Basic reader with customization (5 fonts, 3 themes)
+- [x] Book import and library management
+- [x] Chapter navigation and progress tracking
+- [x] Tap-to-reveal translation popup
 
-### Phase 2: Learning Engine (v0.2)
-- [ ] All proficiency levels
-- [ ] Multiple language pairs
-- [ ] Vocabulary density control
-- [ ] Word saving and lists
+### Phase 2: Learning Engine (v0.2) ✅
+- [x] All proficiency levels (Beginner, Intermediate, Advanced)
+- [x] 28+ language pairs via free translation APIs
+- [x] Vocabulary density control (5%-100%)
+- [x] Word saving to vocabulary lists
+- [x] Frequency-based word difficulty ranking
 
-### Phase 3: Smart Features (v0.3)
-- [ ] Spaced repetition system
-- [ ] Learning analytics
-- [ ] Smart word selection algorithm
-- [ ] Reading statistics
+### Phase 3: Smart Features (v0.3) 🔶 In Progress
+- [x] SM-2 spaced repetition system (VocabularyRepository)
+- [x] Reading statistics (SessionRepository)
+- [ ] Smart word selection algorithm (context-aware)
+- [ ] Learning analytics dashboard
 
 ### Phase 4: Polish & Scale (v1.0)
 - [ ] Cloud sync
-- [ ] Additional book formats
+- [ ] Additional book formats (FB2, MOBI)
 - [ ] Social features (share progress)
 - [ ] Premium features
 

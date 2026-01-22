@@ -3,10 +3,31 @@
  */
 
 import {create} from 'zustand';
+import {persist, createJSONStorage} from 'zustand/middleware';
+import {Platform} from 'react-native';
 
 import type {Book} from '@/types';
 import {bookRepository} from '@services/StorageService/repositories';
 import type {BookFilter, BookSort} from '@services/StorageService/repositories';
+
+// Check if we're on web
+const IS_WEB = Platform.OS === 'web';
+
+// Custom storage for web that handles Date serialization
+const webStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(name);
+  },
+};
 
 // ============================================================================
 // Types
@@ -66,289 +87,383 @@ const DEFAULT_SORT: BookSort = {
 };
 
 // ============================================================================
+// Helper to convert dates in books
+// ============================================================================
+
+const serializeBook = (book: Book): any => ({
+  ...book,
+  addedAt: book.addedAt instanceof Date ? book.addedAt.toISOString() : book.addedAt,
+  lastReadAt: book.lastReadAt instanceof Date ? book.lastReadAt.toISOString() : book.lastReadAt,
+});
+
+const deserializeBook = (book: any): Book => ({
+  ...book,
+  addedAt: new Date(book.addedAt),
+  lastReadAt: book.lastReadAt ? new Date(book.lastReadAt) : null,
+});
+
+// ============================================================================
 // Store Implementation
 // ============================================================================
 
-export const useLibraryStore = create<LibraryState>((set, get) => ({
-  // Initial state
-  books: [],
-  isLoading: false,
-  error: null,
-  isInitialized: false,
-  currentFilter: null,
-  currentSort: DEFAULT_SORT,
+// Create store with persistence for web
+const createLibraryStore = () => {
+  const storeLogic = (set: any, get: any): LibraryState => ({
+    // Initial state
+    books: [],
+    isLoading: false,
+    error: null,
+    isInitialized: false,
+    currentFilter: null,
+    currentSort: DEFAULT_SORT,
 
-  // ============================================================================
-  // Initialization
-  // ============================================================================
+    // ============================================================================
+    // Initialization
+    // ============================================================================
 
-  initialize: async () => {
-    const state = get();
-    if (state.isInitialized) return;
+    initialize: async () => {
+      const state = get();
+      if (state.isInitialized) return;
 
-    set({isLoading: true, error: null});
+      set({isLoading: true, error: null});
 
-    try {
-      const books = await bookRepository.getAll(state.currentSort);
-      set({
-        books,
-        isLoading: false,
-        isInitialized: true,
-      });
-    } catch (error) {
-      console.error('[LibraryStore] Failed to initialize:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to load library',
-        isLoading: false,
-        isInitialized: true, // Mark as initialized even on error
-      });
-    }
-  },
+      try {
+        // On web, books are loaded from localStorage via persist middleware
+        // On native, load from database
+        if (!IS_WEB) {
+          const books = await bookRepository.getAll(state.currentSort);
+          set({
+            books,
+            isLoading: false,
+            isInitialized: true,
+          });
+        } else {
+          // Web: books already loaded from localStorage, just mark as initialized
+          console.log('[LibraryStore] Web initialized with', state.books.length, 'books');
+          set({
+            isLoading: false,
+            isInitialized: true,
+          });
+        }
+      } catch (error) {
+        console.error('[LibraryStore] Failed to initialize:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to load library',
+          isLoading: false,
+          isInitialized: true,
+        });
+      }
+    },
 
-  // ============================================================================
-  // Basic CRUD Operations
-  // ============================================================================
+    // ============================================================================
+    // Basic CRUD Operations
+    // ============================================================================
 
-  addBook: async (book: Book) => {
-    try {
-      // Add to database first
-      await bookRepository.add(book);
+    addBook: async (book: Book) => {
+      try {
+        // On native, add to database first
+        if (!IS_WEB) {
+          await bookRepository.add(book);
+        }
 
-      // Update local state
-      set(state => ({
-        books: [book, ...state.books],
-      }));
-    } catch (error) {
-      console.error('[LibraryStore] Failed to add book:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to add book',
-      });
-      throw error;
-    }
-  },
+        // Update local state (persist middleware handles localStorage on web)
+        set((state: LibraryState) => ({
+          books: [book, ...state.books],
+        }));
 
-  removeBook: async (bookId: string) => {
-    try {
-      // Remove from database first
-      await bookRepository.delete(bookId);
+        console.log('[LibraryStore] Book added:', book.id, book.title);
+      } catch (error) {
+        console.error('[LibraryStore] Failed to add book:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to add book',
+        });
+        throw error;
+      }
+    },
 
-      // Update local state
-      set(state => ({
-        books: state.books.filter(b => b.id !== bookId),
-      }));
-    } catch (error) {
-      console.error('[LibraryStore] Failed to remove book:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to remove book',
-      });
-      throw error;
-    }
-  },
+    removeBook: async (bookId: string) => {
+      try {
+        if (!IS_WEB) {
+          await bookRepository.delete(bookId);
+        }
 
-  updateBook: async (bookId: string, updates: Partial<Book>) => {
-    try {
-      // Update in database first
-      await bookRepository.update(bookId, updates);
+        // Delete the book files
+        try {
+          const { ImportService } = await import('@services/ImportService');
+          await ImportService.deleteBook(bookId);
+        } catch (deleteError) {
+          console.warn('[LibraryStore] Failed to delete book files:', deleteError);
+          // Continue anyway - remove from library even if files fail to delete
+        }
 
-      // Update local state
-      set(state => ({
-        books: state.books.map(book =>
-          book.id === bookId ? {...book, ...updates} : book,
-        ),
-      }));
-    } catch (error) {
-      console.error('[LibraryStore] Failed to update book:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to update book',
-      });
-      throw error;
-    }
-  },
+        set((state: LibraryState) => ({
+          books: state.books.filter(b => b.id !== bookId),
+        }));
 
-  getBook: (bookId: string) => {
-    return get().books.find(b => b.id === bookId);
-  },
+        console.log('[LibraryStore] Book removed:', bookId);
+      } catch (error) {
+        console.error('[LibraryStore] Failed to remove book:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to remove book',
+        });
+        throw error;
+      }
+    },
 
-  // ============================================================================
-  // Data Loading
-  // ============================================================================
+    updateBook: async (bookId: string, updates: Partial<Book>) => {
+      try {
+        if (!IS_WEB) {
+          await bookRepository.update(bookId, updates);
+        }
 
-  refreshBooks: async () => {
-    const state = get();
-    set({isLoading: true, error: null});
+        set((state: LibraryState) => ({
+          books: state.books.map(book =>
+            book.id === bookId ? {...book, ...updates} : book,
+          ),
+        }));
+      } catch (error) {
+        console.error('[LibraryStore] Failed to update book:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to update book',
+        });
+        throw error;
+      }
+    },
 
-    try {
-      let books: Book[];
+    getBook: (bookId: string) => {
+      return get().books.find((b: Book) => b.id === bookId);
+    },
 
-      if (state.currentFilter) {
-        books = await bookRepository.getFiltered(
-          state.currentFilter,
-          state.currentSort,
-        );
-      } else {
-        books = await bookRepository.getAll(state.currentSort);
+    // ============================================================================
+    // Data Loading
+    // ============================================================================
+
+    refreshBooks: async () => {
+      const state = get();
+      
+      // On web, books are already in state from localStorage
+      if (IS_WEB) {
+        return;
       }
 
-      set({books, isLoading: false});
-    } catch (error) {
-      console.error('[LibraryStore] Failed to refresh books:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to load books',
-        isLoading: false,
-      });
-    }
-  },
+      set({isLoading: true, error: null});
 
-  loadBooks: async (filter?: BookFilter, sort?: BookSort) => {
-    const currentSort = sort ?? get().currentSort;
-    set({isLoading: true, error: null, currentFilter: filter ?? null});
+      try {
+        let books: Book[];
 
-    try {
-      let books: Book[];
+        if (state.currentFilter) {
+          books = await bookRepository.getFiltered(
+            state.currentFilter,
+            state.currentSort,
+          );
+        } else {
+          books = await bookRepository.getAll(state.currentSort);
+        }
 
-      if (filter) {
-        books = await bookRepository.getFiltered(filter, currentSort);
-      } else {
-        books = await bookRepository.getAll(currentSort);
+        set({books, isLoading: false});
+      } catch (error) {
+        console.error('[LibraryStore] Failed to refresh books:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to load books',
+          isLoading: false,
+        });
+      }
+    },
+
+    loadBooks: async (filter?: BookFilter, sort?: BookSort) => {
+      const currentSort = sort ?? get().currentSort;
+      set({currentFilter: filter ?? null, currentSort});
+
+      // On web, filter/sort in memory
+      if (IS_WEB) {
+        return;
       }
 
-      set({books, isLoading: false, currentSort});
-    } catch (error) {
-      console.error('[LibraryStore] Failed to load books:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to load books',
-        isLoading: false,
-      });
-    }
-  },
+      set({isLoading: true, error: null});
 
-  searchBooks: async (query: string) => {
-    if (!query.trim()) {
-      return get().refreshBooks();
-    }
+      try {
+        let books: Book[];
 
-    set({isLoading: true, error: null});
+        if (filter) {
+          books = await bookRepository.getFiltered(filter, currentSort);
+        } else {
+          books = await bookRepository.getAll(currentSort);
+        }
 
-    try {
-      const books = await bookRepository.search(query);
-      set({books, isLoading: false});
-    } catch (error) {
-      console.error('[LibraryStore] Failed to search books:', error);
-      set({
-        error: error instanceof Error ? error.message : 'Failed to search books',
-        isLoading: false,
-      });
-    }
-  },
+        set({books, isLoading: false});
+      } catch (error) {
+        console.error('[LibraryStore] Failed to load books:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to load books',
+          isLoading: false,
+        });
+      }
+    },
 
-  // ============================================================================
-  // Progress Tracking
-  // ============================================================================
+    searchBooks: async (query: string) => {
+      if (!query.trim()) {
+        return get().refreshBooks();
+      }
 
-  updateProgress: async (
-    bookId: string,
-    progress: number,
-    location: string | null,
-    chapter?: number,
-    page?: number,
-  ) => {
-    try {
-      // Update in database
-      await bookRepository.updateProgress(bookId, progress, location, chapter, page);
+      // On web, search in memory
+      if (IS_WEB) {
+        return;
+      }
 
-      // Update local state
-      set(state => ({
-        books: state.books.map(book =>
-          book.id === bookId
-            ? {
-                ...book,
-                progress: Math.min(100, Math.max(0, progress)),
-                currentLocation: location,
-                currentChapter: chapter ?? book.currentChapter,
-                currentPage: page ?? book.currentPage,
-                lastReadAt: new Date(),
-              }
-            : book,
-        ),
-      }));
-    } catch (error) {
-      console.error('[LibraryStore] Failed to update progress:', error);
-      // Don't set error for progress updates - they're not critical
-    }
-  },
+      set({isLoading: true, error: null});
 
-  updateReadingTime: async (bookId: string, minutes: number) => {
-    try {
-      // Update in database
-      await bookRepository.addReadingTime(bookId, minutes);
+      try {
+        const books = await bookRepository.search(query);
+        set({books, isLoading: false});
+      } catch (error) {
+        console.error('[LibraryStore] Failed to search books:', error);
+        set({
+          error: error instanceof Error ? error.message : 'Failed to search books',
+          isLoading: false,
+        });
+      }
+    },
 
-      // Update local state
-      set(state => ({
-        books: state.books.map(book =>
-          book.id === bookId
-            ? {
-                ...book,
-                readingTimeMinutes: book.readingTimeMinutes + minutes,
-                lastReadAt: new Date(),
-              }
-            : book,
-        ),
-      }));
-    } catch (error) {
-      console.error('[LibraryStore] Failed to update reading time:', error);
-    }
-  },
+    // ============================================================================
+    // Progress Tracking
+    // ============================================================================
 
-  // ============================================================================
-  // Filtering & Sorting
-  // ============================================================================
+    updateProgress: async (
+      bookId: string,
+      progress: number,
+      location: string | null,
+      chapter?: number,
+      page?: number,
+    ) => {
+      try {
+        if (!IS_WEB) {
+          await bookRepository.updateProgress(bookId, progress, location, chapter, page);
+        }
 
-  setFilter: (filter: BookFilter | null) => {
-    set({currentFilter: filter});
-    get().refreshBooks();
-  },
+        set((state: LibraryState) => ({
+          books: state.books.map(book =>
+            book.id === bookId
+              ? {
+                  ...book,
+                  progress: Math.min(100, Math.max(0, progress)),
+                  currentLocation: location,
+                  currentChapter: chapter ?? book.currentChapter,
+                  currentPage: page ?? book.currentPage,
+                  lastReadAt: new Date(),
+                }
+              : book,
+          ),
+        }));
+      } catch (error) {
+        console.error('[LibraryStore] Failed to update progress:', error);
+      }
+    },
 
-  setSort: (sort: BookSort) => {
-    set({currentSort: sort});
-    get().refreshBooks();
-  },
+    updateReadingTime: async (bookId: string, minutes: number) => {
+      try {
+        if (!IS_WEB) {
+          await bookRepository.addReadingTime(bookId, minutes);
+        }
 
-  // ============================================================================
-  // State Setters
-  // ============================================================================
+        set((state: LibraryState) => ({
+          books: state.books.map(book =>
+            book.id === bookId
+              ? {
+                  ...book,
+                  readingTimeMinutes: book.readingTimeMinutes + minutes,
+                  lastReadAt: new Date(),
+                }
+              : book,
+          ),
+        }));
+      } catch (error) {
+        console.error('[LibraryStore] Failed to update reading time:', error);
+      }
+    },
 
-  setLoading: (loading: boolean) => {
-    set({isLoading: loading});
-  },
+    // ============================================================================
+    // Filtering & Sorting
+    // ============================================================================
 
-  setError: (error: string | null) => {
-    set({error});
-  },
+    setFilter: (filter: BookFilter | null) => {
+      set({currentFilter: filter});
+      if (!IS_WEB) {
+        get().refreshBooks();
+      }
+    },
 
-  clearError: () => {
-    set({error: null});
-  },
+    setSort: (sort: BookSort) => {
+      set({currentSort: sort});
+      if (!IS_WEB) {
+        get().refreshBooks();
+      }
+    },
 
-  // ============================================================================
-  // Data Management
-  // ============================================================================
+    // ============================================================================
+    // State Setters
+    // ============================================================================
 
-  clearLibrary: async () => {
-    set({isLoading: true});
-    try {
-      await bookRepository.deleteAll();
-      set({
-        books: [],
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      console.error('Failed to clear library:', error);
-      set({isLoading: false});
-      throw error;
-    }
-  },
-}));
+    setLoading: (loading: boolean) => {
+      set({isLoading: loading});
+    },
+
+    setError: (error: string | null) => {
+      set({error});
+    },
+
+    clearError: () => {
+      set({error: null});
+    },
+
+    // ============================================================================
+    // Data Management
+    // ============================================================================
+
+    clearLibrary: async () => {
+      set({isLoading: true});
+      try {
+        if (!IS_WEB) {
+          await bookRepository.deleteAll();
+        }
+        set({
+          books: [],
+          isLoading: false,
+          error: null,
+        });
+      } catch (error) {
+        console.error('Failed to clear library:', error);
+        set({isLoading: false});
+        throw error;
+      }
+    },
+  });
+
+  // On web, use persist middleware
+  if (IS_WEB) {
+    return create<LibraryState>()(
+      persist(storeLogic, {
+        name: 'xenolexia-library',
+        storage: createJSONStorage(() => webStorage),
+        partialize: (state) => ({
+          books: state.books.map(serializeBook),
+          currentSort: state.currentSort,
+        }),
+        onRehydrateStorage: () => (state) => {
+          if (state) {
+            // Deserialize dates in books
+            state.books = state.books.map(deserializeBook);
+            console.log('[LibraryStore] Rehydrated', state.books.length, 'books from localStorage');
+          }
+        },
+      })
+    );
+  }
+
+  // On native, use regular store (database handles persistence)
+  return create<LibraryState>(storeLogic);
+};
+
+export const useLibraryStore = createLibraryStore();
 
 // ============================================================================
 // Selectors

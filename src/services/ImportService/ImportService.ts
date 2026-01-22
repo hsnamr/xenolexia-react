@@ -5,12 +5,14 @@
  * Supports EPUB, MOBI, FB2, and TXT formats.
  */
 
+import {Platform} from 'react-native';
 import DocumentPicker, {types} from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import {v4 as uuidv4} from 'uuid';
 
 import type {BookFormat} from '@/types';
 import {MetadataExtractor} from '@services/BookParser';
+import {FileSystemService} from '@services/FileSystemService';
 import type {
   ImportProgress,
   ImportResult,
@@ -25,8 +27,11 @@ import {SUPPORTED_EXTENSIONS} from './types';
 // Constants
 // ============================================================================
 
-/** Base directory for storing books */
-const BOOKS_BASE_DIR = `${RNFS.DocumentDirectoryPath}/books`;
+/** Base directory for storing books (used on native platforms) */
+const BOOKS_BASE_DIR = `${RNFS.DocumentDirectoryPath}/.xenolexia/books`;
+
+/** Whether to use File System Access API on web */
+const USE_FILE_SYSTEM_API = Platform.OS === 'web' && FileSystemService.isSupported();
 
 /** Supported document picker types */
 const PICKER_TYPES = [
@@ -50,6 +55,12 @@ export class ImportService {
     if (this.isInitialized) return;
 
     try {
+      // On web with File System Access API, initialize the service
+      if (USE_FILE_SYSTEM_API) {
+        await FileSystemService.initialize();
+      }
+
+      // Also ensure RNFS directory exists (for fallback/native)
       const exists = await RNFS.exists(BOOKS_BASE_DIR);
       if (!exists) {
         await RNFS.mkdir(BOOKS_BASE_DIR);
@@ -57,8 +68,40 @@ export class ImportService {
       this.isInitialized = true;
     } catch (error) {
       console.error('Failed to initialize ImportService:', error);
-      throw error;
+      // Don't throw - allow service to work without pre-initialization
+      this.isInitialized = true;
     }
+  }
+
+  /**
+   * Check if file system access has been granted (web only)
+   */
+  static async hasFileSystemAccess(): Promise<boolean> {
+    if (!USE_FILE_SYSTEM_API) {
+      return true; // Native always has access
+    }
+    return await FileSystemService.hasDirectoryAccess();
+  }
+
+  /**
+   * Request file system access from user (web only)
+   * Returns true if access was granted
+   */
+  static async requestFileSystemAccess(): Promise<boolean> {
+    if (!USE_FILE_SYSTEM_API) {
+      return true; // Native always has access
+    }
+    return await FileSystemService.requestDirectoryAccess();
+  }
+
+  /**
+   * Get the name of the current storage directory (for display)
+   */
+  static getStorageDirectoryName(): string | null {
+    if (!USE_FILE_SYSTEM_API) {
+      return BOOKS_BASE_DIR;
+    }
+    return FileSystemService.getDirectoryName();
   }
 
   /**
@@ -209,8 +252,62 @@ export class ImportService {
     bookId: string,
   ): Promise<CopiedFileInfo> {
     const format = this.detectFormat(file.name);
+    const filename = `book.${format}`;
+
+    // On web with File System Access API, save to user's chosen directory
+    if (USE_FILE_SYSTEM_API) {
+      return await this.copyFileToFileSystem(file, bookId, filename, format);
+    }
+
+    // Fallback to RNFS (native or web IndexedDB)
+    return await this.copyFileToRNFS(file, bookId, filename, format);
+  }
+
+  /**
+   * Copy file using File System Access API (web)
+   */
+  private static async copyFileToFileSystem(
+    file: SelectedFile,
+    bookId: string,
+    filename: string,
+    format: BookFormat,
+  ): Promise<CopiedFileInfo> {
+    // Fetch the file content from blob URL
+    const response = await fetch(file.uri);
+    if (!response.ok) {
+      throw new Error('Failed to read selected file');
+    }
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Save to user's file system (for persistence)
+    await FileSystemService.saveBook(bookId, filename, arrayBuffer);
+
+    // Also save to IndexedDB (RNFS) so the reader can access it
     const bookDir = `${BOOKS_BASE_DIR}/${bookId}`;
-    const destPath = `${bookDir}/book.${format}`;
+    const destPath = `${bookDir}/${filename}`;
+    await RNFS.mkdir(bookDir);
+    await RNFS.writeFile(destPath, arrayBuffer);
+
+    return {
+      bookId,
+      originalName: file.name,
+      localPath: destPath, // Use RNFS path for reading
+      format,
+      fileSize: arrayBuffer.byteLength,
+    };
+  }
+
+  /**
+   * Copy file using RNFS (native or IndexedDB fallback)
+   */
+  private static async copyFileToRNFS(
+    file: SelectedFile,
+    bookId: string,
+    filename: string,
+    format: BookFormat,
+  ): Promise<CopiedFileInfo> {
+    const bookDir = `${BOOKS_BASE_DIR}/${bookId}`;
+    const destPath = `${bookDir}/${filename}`;
 
     // Create book directory
     await RNFS.mkdir(bookDir);
@@ -323,6 +420,13 @@ export class ImportService {
    */
   static async deleteBook(bookId: string): Promise<boolean> {
     try {
+      // Try File System Access API first (web)
+      if (USE_FILE_SYSTEM_API) {
+        const deleted = await FileSystemService.deleteBook(bookId);
+        if (deleted) return true;
+      }
+
+      // Fallback to RNFS
       const bookDir = `${BOOKS_BASE_DIR}/${bookId}`;
       const exists = await RNFS.exists(bookDir);
 

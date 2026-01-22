@@ -2,7 +2,7 @@
  * Reader Screen - Main book reading experience with foreign word integration
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -40,7 +40,7 @@ export function ReaderScreen(): React.JSX.Element {
   const { bookId } = route.params;
 
   // Store hooks
-  const { getBook, updateBookProgress } = useLibraryStore();
+  const { getBook, updateProgress: updateBookProgress } = useLibraryStore();
   const { initialize: initVocabulary, isWordSaved } = useVocabularyStore();
   const {
     currentBook,
@@ -93,6 +93,20 @@ export function ReaderScreen(): React.JSX.Element {
   const [showChapters, setShowChapters] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
+  // Refs to track current values for cleanup (avoids infinite loop)
+  const currentBookRef = useRef(currentBook);
+  const overallProgressRef = useRef(overallProgress);
+  const updateBookProgressRef = useRef(updateBookProgress);
+  const closeBookRef = useRef(closeBook);
+
+  // Keep refs updated
+  useEffect(() => {
+    currentBookRef.current = currentBook;
+    overallProgressRef.current = overallProgress;
+    updateBookProgressRef.current = updateBookProgress;
+    closeBookRef.current = closeBook;
+  });
+
   // Initialize vocabulary store
   useEffect(() => {
     initVocabulary();
@@ -105,16 +119,18 @@ export function ReaderScreen(): React.JSX.Element {
     }
   }, [book, currentBook, loadBook]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount only
   useEffect(() => {
     return () => {
       // Save progress before closing
-      if (currentBook) {
-        updateBookProgress(currentBook.id, overallProgress);
+      const bookToSave = currentBookRef.current;
+      const progress = overallProgressRef.current;
+      if (bookToSave) {
+        updateBookProgressRef.current(bookToSave.id, progress, null);
       }
-      closeBook();
+      closeBookRef.current();
     };
-  }, [currentBook, overallProgress, updateBookProgress, closeBook]);
+  }, []); // Empty deps - only runs on unmount
 
   // Handle word tap from WebView
   const onWebViewWordTap = useCallback((data: ForeignWordData) => {

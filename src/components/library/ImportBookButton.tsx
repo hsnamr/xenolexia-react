@@ -3,18 +3,23 @@
  */
 
 import React, {useCallback, useState} from 'react';
-import {StyleSheet, TouchableOpacity, Alert} from 'react-native';
+import {StyleSheet, TouchableOpacity, Alert, Platform} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {useColors} from '@/theme';
-import {spacing, borderRadius} from '@/theme/tokens';
+import {borderRadius} from '@/theme/tokens';
 import {Button} from '@components/ui';
 import {PlusIcon} from '@components/common/TabBarIcon';
 import {ImportService} from '@services/ImportService';
 import type {ImportProgress, SelectedFile} from '@services/ImportService';
 import {useLibraryStore} from '@stores/libraryStore';
 import {useUserStore} from '@stores/userStore';
+import type {RootStackParamList} from '@/types';
 
 import {ImportProgressModal} from './ImportProgressModal';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // ============================================================================
 // Types
@@ -34,6 +39,7 @@ export function ImportBookButton({
   onImportComplete,
 }: ImportBookButtonProps): React.JSX.Element {
   const colors = useColors();
+  const navigation = useNavigation<NavigationProp>();
   const {addBook} = useLibraryStore();
   const {preferences} = useUserStore();
 
@@ -41,8 +47,38 @@ export function ImportBookButton({
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
 
+  const showAlert = useCallback((title: string, message: string, onOk?: () => void) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+      onOk?.();
+    } else {
+      Alert.alert(title, message, [{text: 'OK', onPress: onOk}]);
+    }
+  }, []);
+
   const handleImport = useCallback(async () => {
     try {
+      // Step 0: Ensure file system access (web only)
+      if (Platform.OS === 'web') {
+        const hasAccess = await ImportService.hasFileSystemAccess();
+        if (!hasAccess) {
+          // Prompt user to select a directory for storing books
+          const message = 'Xenolexia needs access to a folder to store your books.\n\n' +
+            'Please select or create a folder (e.g., "Xenolexia Books" in your Documents).';
+          
+          if (Platform.OS === 'web') {
+            const proceed = window.confirm(message + '\n\nClick OK to choose a folder.');
+            if (!proceed) return;
+          }
+
+          const granted = await ImportService.requestFileSystemAccess();
+          if (!granted) {
+            showAlert('Access Required', 'A folder is required to store your books. Please try again and select a folder.');
+            return;
+          }
+        }
+      }
+
       // Step 1: Select file
       setProgress({
         status: 'selecting',
@@ -77,8 +113,7 @@ export function ImportBookButton({
       });
 
       if (result.success && result.bookId && result.metadata) {
-        // Add book to library store
-        addBook({
+        const newBook = {
           id: result.bookId,
           title: result.metadata.title,
           author: result.metadata.author,
@@ -102,13 +137,42 @@ export function ImportBookButton({
           totalPages: result.metadata.estimatedPages || 0,
           readingTimeMinutes: 0,
           isDownloaded: true,
-        });
+        };
 
+        // Add book to library store (await to ensure it completes)
+        try {
+          await addBook(newBook);
+          console.log('[ImportBookButton] Book added to library:', newBook.id, newBook.title);
+        } catch (addError) {
+          console.error('[ImportBookButton] Failed to add book to library:', addError);
+          // Continue anyway - the file is imported, just might not persist in DB
+        }
+
+        // Close the modal
+        setIsImporting(false);
+        setProgress(null);
+        setSelectedFile(null);
+
+        // Notify parent
         onImportComplete?.();
+
+        // Show success and navigate to reader
+        showAlert(
+          'Import Successful',
+          `"${result.metadata.title}" has been added to your library.`,
+          () => {
+            // Navigate to reader after user acknowledges
+            navigation.navigate('Reader', {bookId: result.bookId!});
+          }
+        );
+      } else {
+        throw new Error(result.error || 'Import failed');
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Import failed';
+
+      console.error('[ImportBookButton] Import error:', error);
 
       setProgress({
         status: 'error',
@@ -118,9 +182,9 @@ export function ImportBookButton({
         error: errorMessage,
       });
 
-      Alert.alert('Import Failed', errorMessage, [{text: 'OK'}]);
+      showAlert('Import Failed', errorMessage);
     }
-  }, [addBook, preferences, selectedFile, onImportComplete]);
+  }, [addBook, preferences, selectedFile, onImportComplete, navigation, showAlert]);
 
   const handleDismiss = useCallback(() => {
     setIsImporting(false);

@@ -25,7 +25,7 @@ type LibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export function LibraryScreen(): React.JSX.Element {
   const navigation = useNavigation<LibraryNavigationProp>();
   const colors = useColors();
-  const {books, isLoading, refreshBooks} = useLibraryStore();
+  const {books, isLoading, refreshBooks, removeBook} = useLibraryStore();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,13 +50,30 @@ export function LibraryScreen(): React.JSX.Element {
     [navigation]
   );
 
+  const handleDeleteBook = useCallback(
+    async (bookId: string) => {
+      try {
+        await removeBook(bookId);
+      } catch (error) {
+        console.error('Failed to delete book:', error);
+      }
+    },
+    [removeBook]
+  );
+
   const handleBrowseBooks = useCallback(() => {
     navigation.navigate('BookDiscovery', {});
   }, [navigation]);
 
   const renderBook = useCallback(
-    ({item}: {item: Book}) => <BookCard book={item} onPress={() => handleBookPress(item)} />,
-    [handleBookPress]
+    ({item}: {item: Book}) => (
+      <BookCard
+        book={item}
+        onPress={() => handleBookPress(item)}
+        onDelete={handleDeleteBook}
+      />
+    ),
+    [handleBookPress, handleDeleteBook]
   );
 
   const keyExtractor = useCallback((item: Book) => item.id, []);

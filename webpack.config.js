@@ -1,24 +1,28 @@
 const path = require('path');
+
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
 
 const appDirectory = path.resolve(__dirname);
+const isDev = process.env.NODE_ENV !== 'production';
 
 // Babel loader configuration for React Native Web
 const babelLoaderConfiguration = {
   test: /\.(js|jsx|ts|tsx)$/,
   // Include everything except problematic node_modules
-  exclude: /node_modules\/(?!(react-native-reanimated|react-native-gesture-handler|react-native-screens|react-native-safe-area-context|@react-navigation|react-native-svg|nativewind)\/).*/,
+  exclude:
+    /node_modules\/(?!(react-native-reanimated|react-native-gesture-handler|react-native-screens|react-native-safe-area-context|@react-navigation|react-native-svg|nativewind)\/).*/,
   use: {
     loader: 'babel-loader',
     options: {
       cacheDirectory: true,
       presets: [
-        ['@babel/preset-env', { targets: { browsers: ['last 2 versions'] } }],
-        '@babel/preset-react',
+        ['@babel/preset-env', {targets: {browsers: ['last 2 versions']}}],
+        ['@babel/preset-react', {runtime: 'automatic'}],
         '@babel/preset-typescript',
       ],
       plugins: [
-        'react-native-web',
+        // Don't use babel-plugin-react-native-web - use webpack alias instead
         '@babel/plugin-transform-runtime',
       ],
     },
@@ -46,21 +50,23 @@ module.exports = {
     clean: true,
   },
   module: {
-    rules: [
-      babelLoaderConfiguration,
-      imageLoaderConfiguration,
-      fontLoaderConfiguration,
-    ],
+    rules: [babelLoaderConfiguration, imageLoaderConfiguration, fontLoaderConfiguration],
   },
   resolve: {
     extensions: ['.web.tsx', '.web.ts', '.web.js', '.tsx', '.ts', '.js'],
     alias: {
-      // Map react-native to react-native-web (without $ for prefix matching)
-      'react-native': 'react-native-web',
+      // Map react-native to react-native-web
+      'react-native$': path.resolve(appDirectory, 'node_modules/react-native-web'),
       // Web mocks for native modules
       'react-native-fs': path.resolve(appDirectory, 'src/mocks/react-native-fs.web.ts'),
-      'react-native-document-picker': path.resolve(appDirectory, 'src/mocks/react-native-document-picker.web.ts'),
-      'react-native-sqlite-storage': path.resolve(appDirectory, 'src/mocks/react-native-sqlite-storage.web.ts'),
+      'react-native-document-picker': path.resolve(
+        appDirectory,
+        'src/mocks/react-native-document-picker.web.ts'
+      ),
+      'react-native-sqlite-storage': path.resolve(
+        appDirectory,
+        'src/mocks/react-native-sqlite-storage.web.ts'
+      ),
       'react-native-webview': path.resolve(appDirectory, 'src/mocks/react-native-webview.web.tsx'),
       // Path aliases matching tsconfig
       '@': path.resolve(appDirectory, 'src'),
@@ -79,14 +85,18 @@ module.exports = {
     },
     fallback: {
       // Node.js polyfills for web
-      'crypto': false,
-      'stream': false,
-      'buffer': false,
-      'fs': false,
-      'path': false,
+      crypto: false,
+      stream: false,
+      buffer: false,
+      fs: false,
+      path: false,
     },
   },
   plugins: [
+    // Define React Native globals for web
+    new webpack.DefinePlugin({
+      __DEV__: JSON.stringify(isDev),
+    }),
     new HtmlWebpackPlugin({
       template: path.resolve(appDirectory, 'public/index.html'),
       filename: 'index.html',

@@ -13,11 +13,17 @@
  * - Caches translations for offline use
  */
 
-import type { Language, ProficiencyLevel, WordEntry, PartOfSpeech } from '@/types';
-import { TranslationAPIService, translationAPI } from './TranslationAPIService';
-import { FrequencyListService, frequencyListService, PROFICIENCY_THRESHOLDS } from './FrequencyListService';
-import { DatabaseService } from '@services/StorageService/DatabaseService';
-import { DatabaseSchema } from '@services/StorageService/DatabaseSchema';
+import {DatabaseSchema} from '@services/StorageService/DatabaseSchema';
+import {databaseService} from '@services/StorageService/DatabaseService';
+
+import {
+  FrequencyListService,
+  frequencyListService,
+  PROFICIENCY_THRESHOLDS,
+} from './FrequencyListService';
+import {TranslationAPIService, translationAPI} from './TranslationAPIService';
+
+import type {Language, ProficiencyLevel, WordEntry, PartOfSpeech} from '@/types';
 
 // ============================================================================
 // Types
@@ -36,7 +42,7 @@ export interface WordLookupResult {
 
 export interface DatabaseStats {
   totalCachedWords: number;
-  languagePairs: Array<{ source: Language; target: Language; count: number }>;
+  languagePairs: Array<{source: Language; target: Language; count: number}>;
   lastUpdated: string | null;
 }
 
@@ -45,14 +51,14 @@ export interface DatabaseStats {
 // ============================================================================
 
 export class DynamicWordDatabase {
-  private db: DatabaseService;
+  private db: typeof databaseService;
   private translationAPI: TranslationAPIService;
   private frequencyService: FrequencyListService;
   private memoryCache: Map<string, DynamicWordEntry> = new Map();
   private initialized: boolean = false;
 
   constructor() {
-    this.db = DatabaseService.getInstance();
+    this.db = databaseService;
     this.translationAPI = translationAPI;
     this.frequencyService = frequencyListService;
   }
@@ -81,28 +87,32 @@ export class DynamicWordDatabase {
 
     // 1. Check memory cache
     if (this.memoryCache.has(cacheKey)) {
-      return { entry: this.memoryCache.get(cacheKey)!, source: 'cache' };
+      return {entry: this.memoryCache.get(cacheKey)!, source: 'cache'};
     }
 
     // 2. Check database
     const dbEntry = await this.lookupFromDatabase(normalizedWord, sourceLanguage, targetLanguage);
     if (dbEntry) {
       this.memoryCache.set(cacheKey, dbEntry);
-      return { entry: dbEntry, source: 'database' };
+      return {entry: dbEntry, source: 'database'};
     }
 
     // 3. Translate via API and cache
     try {
-      const translated = await this.translateAndCache(normalizedWord, sourceLanguage, targetLanguage);
+      const translated = await this.translateAndCache(
+        normalizedWord,
+        sourceLanguage,
+        targetLanguage
+      );
       if (translated) {
         this.memoryCache.set(cacheKey, translated);
-        return { entry: translated, source: 'api' };
+        return {entry: translated, source: 'api'};
       }
     } catch (error) {
       console.warn(`Translation failed for "${word}":`, error);
     }
 
-    return { entry: null, source: 'none' };
+    return {entry: null, source: 'none'};
   }
 
   /**
@@ -122,12 +132,16 @@ export class DynamicWordDatabase {
       const cacheKey = this.getCacheKey(normalizedWord, sourceLanguage, targetLanguage);
 
       if (this.memoryCache.has(cacheKey)) {
-        results.set(word, { entry: this.memoryCache.get(cacheKey)!, source: 'cache' });
+        results.set(word, {entry: this.memoryCache.get(cacheKey)!, source: 'cache'});
       } else {
-        const dbEntry = await this.lookupFromDatabase(normalizedWord, sourceLanguage, targetLanguage);
+        const dbEntry = await this.lookupFromDatabase(
+          normalizedWord,
+          sourceLanguage,
+          targetLanguage
+        );
         if (dbEntry) {
           this.memoryCache.set(cacheKey, dbEntry);
-          results.set(word, { entry: dbEntry, source: 'database' });
+          results.set(word, {entry: dbEntry, source: 'database'});
         } else {
           toTranslate.push(word);
         }
@@ -150,11 +164,11 @@ export class DynamicWordDatabase {
           targetLanguage,
           bulkResult.provider
         );
-        results.set(word, { entry, source: 'api' });
+        results.set(word, {entry, source: 'api'});
       }
 
       for (const word of bulkResult.failed) {
-        results.set(word, { entry: null, source: 'none' });
+        results.set(word, {entry: null, source: 'none'});
       }
     }
 
@@ -175,7 +189,7 @@ export class DynamicWordDatabase {
 
     // Get frequency-ranked words for the source language
     const frequencyWords = await this.frequencyService.getWordsByProficiency(sourceLanguage, level);
-    
+
     if (frequencyWords.length === 0) {
       // Frequency list not available, return cached words
       return this.getCachedWordsByLevel(sourceLanguage, targetLanguage, level, limit);
@@ -225,11 +239,15 @@ export class DynamicWordDatabase {
   async getStats(): Promise<DatabaseStats> {
     await this.initialize();
 
-    const totalResult = await this.db.getOne<{ count: number }>(
+    const totalResult = await this.db.getOne<{count: number}>(
       'SELECT COUNT(*) as count FROM word_list'
     );
 
-    const pairsResult = await this.db.getAll<{ source_lang: string; target_lang: string; count: number }>(
+    const pairsResult = await this.db.getAll<{
+      source_lang: string;
+      target_lang: string;
+      count: number;
+    }>(
       `SELECT source_lang, target_lang, COUNT(*) as count 
        FROM word_list 
        GROUP BY source_lang, target_lang`
@@ -253,11 +271,11 @@ export class DynamicWordDatabase {
    */
   async clearCache(sourceLanguage?: Language, targetLanguage?: Language): Promise<void> {
     if (sourceLanguage && targetLanguage) {
-      await this.db.execute(
-        'DELETE FROM word_list WHERE source_lang = ? AND target_lang = ?',
-        [sourceLanguage, targetLanguage]
-      );
-      
+      await this.db.execute('DELETE FROM word_list WHERE source_lang = ? AND target_lang = ?', [
+        sourceLanguage,
+        targetLanguage,
+      ]);
+
       // Clear memory cache for this pair
       const prefix = `${sourceLanguage}_${targetLanguage}_`;
       for (const key of this.memoryCache.keys()) {
@@ -278,18 +296,21 @@ export class DynamicWordDatabase {
     sourceLanguage: Language,
     targetLanguage: Language,
     count: number = 500
-  ): Promise<{ cached: number; failed: number }> {
+  ): Promise<{cached: number; failed: number}> {
     // Get most frequent words
-    const frequencyWords = await this.frequencyService.getWordsByProficiency(sourceLanguage, 'beginner');
+    const frequencyWords = await this.frequencyService.getWordsByProficiency(
+      sourceLanguage,
+      'beginner'
+    );
     const words = frequencyWords.slice(0, count).map(w => w.word);
 
     if (words.length === 0) {
-      return { cached: 0, failed: 0 };
+      return {cached: 0, failed: 0};
     }
 
     // Translate and cache
     const results = await this.lookupWords(words, sourceLanguage, targetLanguage);
-    
+
     let cached = 0;
     let failed = 0;
     for (const result of results.values()) {
@@ -300,7 +321,7 @@ export class DynamicWordDatabase {
       }
     }
 
-    return { cached, failed };
+    return {cached, failed};
   }
 
   // ============================================================================
@@ -316,10 +337,11 @@ export class DynamicWordDatabase {
     sourceLanguage: Language,
     targetLanguage: Language
   ): Promise<DynamicWordEntry | null> {
-    const row = await this.db.getOne<any>(
-      DatabaseSchema.wordList.getByWord,
-      [word, sourceLanguage, targetLanguage]
-    );
+    const row = await this.db.getOne<any>(DatabaseSchema.wordList.getByWord, [
+      word,
+      sourceLanguage,
+      targetLanguage,
+    ]);
 
     if (!row) return null;
 
@@ -332,7 +354,7 @@ export class DynamicWordDatabase {
     targetLanguage: Language
   ): Promise<DynamicWordEntry | null> {
     const result = await this.translationAPI.translate(word, sourceLanguage, targetLanguage);
-    
+
     if (result.translatedText) {
       return this.createAndCacheEntry(
         word,
@@ -355,7 +377,7 @@ export class DynamicWordDatabase {
   ): Promise<DynamicWordEntry> {
     // Get frequency rank if available
     const rank = await this.frequencyService.getWordRank(sourceLanguage, sourceWord);
-    const proficiencyLevel = rank 
+    const proficiencyLevel = rank
       ? this.frequencyService.getProficiencyLevel(rank)
       : 'intermediate'; // Default to intermediate if no frequency data
 
@@ -376,21 +398,18 @@ export class DynamicWordDatabase {
 
     // Save to database
     try {
-      await this.db.execute(
-        DatabaseSchema.wordList.insert,
-        [
-          entry.id,
-          entry.sourceWord,
-          entry.targetWord,
-          entry.sourceLanguage,
-          entry.targetLanguage,
-          entry.proficiencyLevel,
-          entry.frequencyRank,
-          entry.partOfSpeech,
-          null, // variants
-          null, // pronunciation
-        ]
-      );
+      await this.db.execute(DatabaseSchema.wordList.insert, [
+        entry.id,
+        entry.sourceWord,
+        entry.targetWord,
+        entry.sourceLanguage,
+        entry.targetLanguage,
+        entry.proficiencyLevel,
+        entry.frequencyRank,
+        entry.partOfSpeech,
+        null, // variants
+        null, // pronunciation
+      ]);
     } catch (error) {
       // Entry might already exist, ignore duplicate error
       if (!(error instanceof Error && error.message.includes('UNIQUE'))) {

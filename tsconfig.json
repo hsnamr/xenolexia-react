@@ -6,6 +6,7 @@
     "target": "esnext",
     "lib": ["es2022"],
     "jsx": "react-native",
+    "types": ["jest"],
 
     // Modules
     "module": "commonjs",

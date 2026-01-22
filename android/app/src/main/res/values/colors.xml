@@ -15,4 +15,7 @@
     
     <!-- Status bar -->
     <color name="status_bar">#0284c7</color>
+    
+    <!-- App icon background -->
+    <color name="ic_launcher_background">#0ea5e9</color>
 </resources>

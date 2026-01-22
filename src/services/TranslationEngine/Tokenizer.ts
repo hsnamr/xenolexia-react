@@ -247,7 +247,7 @@ export class Tokenizer {
 
       // Track quotes in prefix
       for (const char of prefix) {
-        if (char === '"' || char === '"' || char === '"' || char === "'" || char === ''' || char === ''') {
+        if (char === '"' || char === '\u201C' || char === '\u201D' || char === "'" || char === '\u2018' || char === '\u2019') {
           if (!inQuote) {
             inQuote = true;
             lastQuoteChar = char;
@@ -297,7 +297,7 @@ export class Tokenizer {
 
       // Track quotes in suffix
       for (const char of suffix) {
-        if (char === '"' || char === '"' || char === '"' || char === "'" || char === ''' || char === ''') {
+        if (char === '"' || char === '\u201C' || char === '\u201D' || char === "'" || char === '\u2018' || char === '\u2019') {
           if (inQuote && this.isMatchingQuote(lastQuoteChar, char)) {
             inQuote = false;
           }
@@ -364,9 +364,9 @@ export class Tokenizer {
   private isMatchingQuote(open: string, close: string): boolean {
     const pairs: Record<string, string> = {
       '"': '"',
-      '"': '"',
+      '\u201C': '\u201D',
       "'": "'",
-      ''': ''',
+      '\u2018': '\u2019',
     };
     return pairs[open] === close || open === close;
   }

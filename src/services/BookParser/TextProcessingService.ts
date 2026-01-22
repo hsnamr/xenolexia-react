@@ -253,10 +253,10 @@ export class TextProcessingService {
       '&mdash;': '—',
       '&ndash;': '–',
       '&hellip;': '…',
-      '&lsquo;': ''',
-      '&rsquo;': ''',
-      '&ldquo;': '"',
-      '&rdquo;': '"',
+      '&lsquo;': '\u2018',
+      '&rsquo;': '\u2019',
+      '&ldquo;': '\u201C',
+      '&rdquo;': '\u201D',
     };
 
     let decoded = text;

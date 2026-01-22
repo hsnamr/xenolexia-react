@@ -3,14 +3,14 @@
  */
 
 import React, {useState, useCallback} from 'react';
-import {View, StyleSheet, FlatList, RefreshControl} from 'react-native';
+import {View, StyleSheet, FlatList, RefreshControl, TouchableOpacity} from 'react-native';
 
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {useColors} from '@/theme';
-import {spacing} from '@/theme/tokens';
+import {spacing, borderRadius} from '@/theme/tokens';
 import type {Book, RootStackParamList} from '@/types';
 
 import {useLibraryStore} from '@stores/libraryStore';
@@ -18,7 +18,7 @@ import {BookCard} from '@components/library/BookCard';
 import {EmptyLibrary} from '@components/library/EmptyLibrary';
 import {ImportBookButton} from '@components/library/ImportBookButton';
 import {ScreenHeader, LoadingBookGrid} from '@components/common';
-import {SearchInput} from '@components/ui';
+import {SearchInput, Text} from '@components/ui';
 
 type LibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -65,6 +65,18 @@ export function LibraryScreen(): React.JSX.Element {
     navigation.navigate('BookDiscovery', {});
   }, [navigation]);
 
+  const HeaderButtons = useCallback(() => (
+    <View style={headerStyles.container}>
+      <TouchableOpacity
+        style={[headerStyles.discoverButton, {backgroundColor: colors.primaryLight}]}
+        onPress={handleBrowseBooks}
+        activeOpacity={0.8}>
+        <Text variant="labelMedium" customColor={colors.primary}>🔍</Text>
+      </TouchableOpacity>
+      <ImportBookButton />
+    </View>
+  ), [colors, handleBrowseBooks]);
+
   const renderBook = useCallback(
     ({item}: {item: Book}) => (
       <BookCard
@@ -97,7 +109,7 @@ export function LibraryScreen(): React.JSX.Element {
       <ScreenHeader
         title="Library"
         subtitle={books.length > 0 ? `${books.length} books` : undefined}
-        rightElement={<ImportBookButton />}
+        rightElement={<HeaderButtons />}
       />
 
       {isLoading && books.length === 0 ? (
@@ -155,5 +167,20 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     marginBottom: 0,
+  },
+});
+
+const headerStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  discoverButton: {
+    alignItems: 'center',
+    borderRadius: borderRadius.full,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
 });

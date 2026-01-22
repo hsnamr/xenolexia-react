@@ -25,6 +25,52 @@ const BOOKS_DIRECTORY = `${RNFS.DocumentDirectoryPath}/.xenolexia/books`;
 // Whether to use File System Access API on web
 const USE_FILE_SYSTEM_API = Platform.OS === 'web' && FileSystemService.isSupported();
 
+// CORS proxy for web (helps with cross-origin requests)
+const CORS_PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+];
+
+/**
+ * Fetch with CORS proxy fallback for web
+ */
+async function fetchWithCorsProxy(url: string, options?: RequestInit): Promise<Response> {
+  // On native platforms, just use regular fetch
+  if (Platform.OS !== 'web') {
+    return fetch(url, options);
+  }
+
+  // Try direct fetch first
+  try {
+    const response = await fetch(url, {
+      ...options,
+      mode: 'cors',
+    });
+    if (response.ok) {
+      return response;
+    }
+  } catch (error) {
+    console.log('Direct fetch failed, trying CORS proxy:', error);
+  }
+
+  // Try CORS proxies
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl, options);
+      if (response.ok) {
+        console.log('CORS proxy succeeded:', proxy);
+        return response;
+      }
+    } catch (error) {
+      console.log('CORS proxy failed:', proxy, error);
+    }
+  }
+
+  // If all proxies fail, throw error
+  throw new Error('Failed to download: CORS blocked and all proxies failed. Try a different source.');
+}
+
 // ============================================================================
 // Search Result Type with Error Handling
 // ============================================================================
@@ -232,8 +278,8 @@ export class BookDownloadService {
     progress: DownloadProgress,
     onProgress?: (progress: DownloadProgress) => void
   ): Promise<DownloadResult> {
-    // Fetch with progress tracking
-    const response = await fetch(url);
+    // Fetch with CORS proxy fallback
+    const response = await fetchWithCorsProxy(url);
     if (!response.ok) {
       throw new Error(`Download failed with status ${response.status}`);
     }
@@ -280,7 +326,9 @@ export class BookDownloadService {
     const bookDir = `${BOOKS_DIRECTORY}/${bookId}`;
     const destPath = `${bookDir}/${filename}`;
     await RNFS.mkdir(bookDir);
-    await RNFS.writeFile(destPath, combined.buffer);
+    // Convert Uint8Array to ArrayBuffer properly (slice to avoid shared buffer issues)
+    const arrayBuffer = combined.buffer.slice(combined.byteOffset, combined.byteOffset + combined.byteLength);
+    await RNFS.writeFile(destPath, arrayBuffer);
 
     progress.status = 'completed';
     progress.percentage = 100;
@@ -440,8 +488,8 @@ export class BookDownloadService {
     onProgress?.(progress);
 
     try {
-      // Fetch the file
-      const response = await fetch(searchResult.downloadUrl);
+      // Fetch the file with CORS proxy fallback
+      const response = await fetchWithCorsProxy(searchResult.downloadUrl);
       if (!response.ok) {
         throw new Error(`Download failed with status ${response.status}`);
       }
@@ -652,7 +700,7 @@ export class BookDownloadService {
     const encodedQuery = encodeURIComponent(query);
     const url = `https://gutendex.com/books/?search=${encodedQuery}`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithCorsProxy(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -723,7 +771,7 @@ export class BookDownloadService {
     // We'll fetch their main feed and filter client-side
     const url = 'https://standardebooks.org/opds/all';
 
-    const response = await fetch(url, {
+    const response = await fetchWithCorsProxy(url, {
       method: 'GET',
       headers: {
         Accept: 'application/atom+xml',
@@ -819,7 +867,7 @@ export class BookDownloadService {
     // has_fulltext=true ensures we only get books with available downloads
     const url = `https://openlibrary.org/search.json?q=${encodedQuery}&has_fulltext=true&limit=20`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithCorsProxy(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
